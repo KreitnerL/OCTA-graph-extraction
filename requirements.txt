@@ -1,0 +1,11 @@
+numpy
+tqdm
+opencv-python
+scipy
+natsort
+nibabel
+PyYAML
+scikit-image
+pandas
+h5py
+matplotlib

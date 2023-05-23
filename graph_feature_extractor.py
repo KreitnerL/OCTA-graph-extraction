@@ -60,9 +60,9 @@ if __name__ == "__main__":
     # Parse input arguments
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('--image_dir', help="Absolute path to the folder containing all the segmentation maps", type=str, required=True)
+    parser.add_argument('--voreen_tool_path', help="Absolute path to the bin folder of your voreen installation", type=str, required=True)
     parser.add_argument('--output_dir', help="Absolute path to the folder where the graph and feature files should be stored."
                         +"If no folder is provided, the files will be stored in the same directory as the source images.", type=str, default=None)
-    parser.add_argument('--voreen_tool_path', help="Absolute path to the bin folder of your voreen installation", type=str, default="/home/shared/Software/Voreen-source/bin/")
     parser.add_argument('--bulge_size', help="Numeric value of the bulge_size parameter to control the sensitivity", type=float, default=5)
 
     parser.add_argument('--graph_image', help="Generate an image of the extracted graph", type=bool, default=True)
