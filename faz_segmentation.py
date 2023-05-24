@@ -10,7 +10,7 @@ from tqdm import tqdm
 import numpy as np
 
 def get_faz_mask_robust(img_orig: np.ndarray) -> np.ndarray:
-    for border in [600,500,400,300,200,100]:
+    for border in [600,500,400,300,200]:
         faz = get_faz_mask(img_orig, border)
         if (faz[border+1,:]).any() or (faz[-border-1,:]).any() or (faz[:,border+1]).any() or (faz[:, -border-1]).any():
             continue
