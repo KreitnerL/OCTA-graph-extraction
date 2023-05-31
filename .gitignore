@@ -1,2 +1,5 @@
 .vscode/
-images/
+images/**/*.png
+!images/etdrs.svg
+voreen/tmpdir
+**/__pycache__

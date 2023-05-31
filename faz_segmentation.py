@@ -8,6 +8,7 @@ from natsort import natsorted
 import glob
 from tqdm import tqdm
 import numpy as np
+import os
 
 def get_faz_mask_robust(img_orig: np.ndarray) -> np.ndarray:
     for border in [600,500,400,300,200]:
@@ -17,7 +18,6 @@ def get_faz_mask_robust(img_orig: np.ndarray) -> np.ndarray:
         return faz
 
 def get_faz_mask(img_orig: np.ndarray, BORDER=200) -> np.ndarray:
-    img_orig = np.array(Image.open(path))
     img = np.copy(img_orig)
     img[:BORDER] = img[-BORDER:] = img[:,:BORDER]= img[:,-BORDER:] = 255
 
@@ -57,14 +57,15 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('--source_dir', help="Absolute path to the folder containing all the segmentation maps", type=str, required=True)
-    parser.add_argument('--source_files', help="Absolute path to the folder containing all the segmentation maps", type=str, default="/*")
+    parser.add_argument('--source_files', help="Absolute path to the folder containing all the segmentation maps", type=str, default="/*.png")
     parser.add_argument('--output_dir', help="Absolute path to the folder where the faz segmentation files wil be stored.", type=str, default=None)
+    parser.add_argument('--threads', help="Absolute path to the folder where the faz segmentation files wil be stored.", type=int, default=1)
     args = parser.parse_args()
 
     data_files: list[str] = natsorted(glob.glob(args.source_dir + args.source_files, recursive=True))
     output_dir: str = args.output_dir
 
-    for path in tqdm(data_files):
+    def task(path: str):
         name = path.split("/")[-1]
         img_orig = np.array(Image.open(path))
         faz_final = get_faz_mask_robust(img_orig)
@@ -75,5 +76,15 @@ if __name__ == "__main__":
 
         img_and_faz = np.zeros_like(img_orig)
         img_and_faz[(faz_final==1) & (img_and_faz==0)]=255
-        Image.fromarray(img_and_faz.astype(np.uint8)).save(path.replace(args.source_dir, output_dir).replace(name, "faz_"+name))
+        out_path = path.replace(args.source_dir, output_dir).replace(name, "faz_"+name)
+        out_dir = "/".join(out_path.split("/")[:-1])
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+        Image.fromarray(img_and_faz.astype(np.uint8)).save(out_path)
 
+    from multiprocessing.dummy import Pool as Pool
+    from multiprocessing.pool import ThreadPool
+    pool: ThreadPool = Pool(args.threads)
+    results = list(tqdm(pool.imap(task, data_files), total=len(data_files)))
+
+    
