@@ -3,3 +3,4 @@ images/**/*.png
 !images/etdrs.svg
 voreen/tmpdir
 **/__pycache__
+**/debug*

@@ -72,7 +72,7 @@ def extract_vessel_graph(volume_path: str,
         # these can be group or dataset names 
         a_group_key = list(f.keys())[0]
         ds_arr = f[a_group_key][()]  # returns as a numpy array
-    os.system(f'rm -r {absolute_temp_path}')
+    os.system(f"rm -rf '{absolute_temp_path}'")
     ret = ds_arr[1]
     ret = np.flip(np.rot90(ret),0)
     return ret

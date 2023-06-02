@@ -11,11 +11,12 @@ import numpy as np
 import os
 
 def get_faz_mask_robust(img_orig: np.ndarray) -> np.ndarray:
-    for border in [600,500,400,300,200]:
+    for border in [600,500,400,300,200, 100]:
         faz = get_faz_mask(img_orig, border)
         if (faz[border+1,:]).any() or (faz[-border-1,:]).any() or (faz[:,border+1]).any() or (faz[:, -border-1]).any():
             continue
         return faz
+    return faz
 
 def get_faz_mask(img_orig: np.ndarray, BORDER=200) -> np.ndarray:
     img = np.copy(img_orig)
@@ -82,9 +83,13 @@ if __name__ == "__main__":
             os.makedirs(out_dir)
         Image.fromarray(img_and_faz.astype(np.uint8)).save(out_path)
 
-    from multiprocessing.dummy import Pool as Pool
-    from multiprocessing.pool import ThreadPool
-    pool: ThreadPool = Pool(args.threads)
-    results = list(tqdm(pool.imap(task, data_files), total=len(data_files)))
+    if args.threads>1:
+        from multiprocessing.dummy import Pool as Pool
+        from multiprocessing.pool import ThreadPool
+        pool: ThreadPool = Pool(args.threads)
+        results = list(tqdm(pool.imap(task, data_files), total=len(data_files)))
+    else:
+        for path in tqdm(data_files):
+            task(path)
 
     

@@ -81,8 +81,9 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    # Clean tmpdir
     if os.path.exists(TMP_DIR):
-        os.system(f'rm -r {TMP_DIR}')
+        os.system(f"rm -rf '{TMP_DIR}'")
 
     if args.ETDRS:
         assert bool(args.faz_dir)
@@ -129,7 +130,7 @@ if __name__ == "__main__":
                 ves_seg_masked[~mask] = 0
 
                 # Compute graph
-                extract_graph_features(ves_seg_masked, name.replace(".png", "_"+suffix+".png"), output_dir, args.bulge_size, args.voreen_tool_path, args.graph_image, args.generate_graph_file, args.colorize_graph, verbose=bool(args.verbose))
+                extract_graph_features(ves_seg_masked, name.replace(".png", "_"+suffix), output_dir, args.bulge_size, args.voreen_tool_path, args.graph_image, args.generate_graph_file, args.colorize_graph, verbose=bool(args.verbose))
     else:
         ves_seg_files = natsorted(glob.glob(args.image_dir+"/*"))
         # for image_path in tqdm(image_paths, desc="Extracting graph features"):
