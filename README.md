@@ -1,9 +1,9 @@
-# OCTA GRAPH FEATURE ANALYSIS
 > ⚠️ **_NOTE:_** This repository is work in progress
+# OCTA GRAPH FEATURE ANALYSIS
 
 This repository enables the qunatitative analysis of OCTA images. Given a vessel segmentation map, we provide code for FAZ segmentation and graph feature extraction. We use the open-source software *Voreen* for graph and feature extraction. See [https://github.com/TUM-AIMED/OCTA-seg](https://github.com/KreitnerL/OCTA-seg) to obtain a detailed vessel segmentation for your OCTA image.
 <div style="text-align:center">
-    <img src="images/graph_extraction_pipeline.svg">
+    <img src="images/graph_extraction_pipeline.png">
 </div>
 
 # 🔴 TL;DR: Get graph features from my segmentations
@@ -46,7 +46,7 @@ python graph_feature_extractor.py --image_dir [PATH_TO_SRC_FOLDER] --output_dir 
 ### ETDRS grid analysis:
 Collect the vessel segmentation maps and the matching faz segmentation files in two seperate folders. Note that the faz should always be computed on the entire image or the DVC image. If the image belongs to the left eye and contains an `"_OS_"` identifier, we define the left quadrant to be nasal. Otherwise the right quadrant is defined as nasal. The center of the ETDRS grid is set to the center of the FAZ.
 <div style="text-align:center">
-    <img src="images/etdrs.svg">
+    <img src="images/etdrs.png">
 </div>
 
 Create the analysis by running:
