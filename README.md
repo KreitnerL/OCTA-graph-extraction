@@ -1,7 +1,7 @@
 > ⚠️ **_NOTE:_** This repository is work in progress
 # OCTA GRAPH FEATURE ANALYSIS
 
-This repository enables the qunatitative analysis of OCTA images. Given a vessel segmentation map, we provide code for FAZ segmentation and graph feature extraction. We use the open-source software *Voreen* for graph and feature extraction. See [https://github.com/TUM-AIMED/OCTA-seg](https://github.com/KreitnerL/OCTA-seg) to obtain a detailed vessel segmentation for your OCTA image.
+This repository enables the quantitative analysis of OCTA images. Given a vessel segmentation map, we provide code for FAZ segmentation and graph feature extraction. We use the open-source software *Voreen* for graph and feature extraction. See [https://github.com/TUM-AIMED/OCTA-seg](https://github.com/KreitnerL/OCTA-seg) to obtain detailed vessel segmentations for your OCTA images.
 <div style="text-align:center">
     <img src="images/graph_extraction_pipeline.png">
 </div>
