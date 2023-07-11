@@ -1,6 +1,7 @@
 .vscode/
 images/**/*.png
-!images/etdrs.svg
+!images/etdrs.png
+!images/graph_extraction_pipeline.png
 voreen/tmpdir
 **/__pycache__
 **/debug*
