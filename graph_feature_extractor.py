@@ -12,8 +12,8 @@ import glob
 from natsort import natsorted
 from scipy import ndimage
 import uuid
-from multiprocessing.dummy import Pool as Pool
-from multiprocessing.pool import ThreadPool
+from multiprocessing import cpu_count
+import concurrent.futures
 
 project_folder = str(pathlib.Path(__file__).parent.resolve())
 
@@ -77,7 +77,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--ETDRS', action="store_true", help="Analyse vessels in ETDRS grid")
     parser.add_argument('--faz_dir', help="Absolute path to the folder containing all the faz segmentation maps. Only needed for ETDRS analysis", type=str)
-    parser.add_argument('--threads', help="Number of concurrent threads", type=int, default=1)
+    parser.add_argument('--threads', help="Number of parallel threads. By default all available threads but one are used.", type=int, default=-1)
 
     args = parser.parse_args()
 
@@ -144,9 +144,22 @@ if __name__ == "__main__":
             a = np.array(Image.open(ves_seg_path))
             extract_graph_features(a, image_name, output_dir, args.bulge_size, args.voreen_tool_path, args.graph_image, args.generate_graph_file, args.colorize_graph, verbose=bool(args.verbose))
 
-if args.threads>1:
-    pool: ThreadPool = Pool(args.threads)
-    results = list(tqdm(pool.imap(task, ves_seg_files), total=len(ves_seg_files)))
-else:
-    for ves_seg_path in tqdm(ves_seg_files):
-        task(ves_seg_path)
+    if args.threads == -1:
+        # If no argument is provided, use all available threads but one
+        cpus = cpu_count()
+        threads = min(cpus-1 if cpus>1 else 1,args.num_samples)
+    else:
+        threads=args.threads
+
+    if args.threads>1:
+        # Multi processing
+        with tqdm(total=args.num_samples, desc="Extracting graph features...") as pbar:
+            with concurrent.futures.ProcessPoolExecutor(max_workers=threads) as executor:
+                future_dict = {executor.submit(task, ves_seg_files[i]): i for i in range(len(ves_seg_files))}
+                for future in concurrent.futures.as_completed(future_dict):
+                    i = future_dict[future]
+                    pbar.update(1)
+    else:
+        # Single processing
+        for ves_seg_path in tqdm(ves_seg_files):
+            task(ves_seg_path, desc="Extracting graph features...")

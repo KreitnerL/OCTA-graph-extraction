@@ -12,12 +12,15 @@ For convenience, we provide a docker file to perform feature extraction:
 # Build Docker image. (This can take a while. Only required once.)
 docker build . -t octa-graph-extraction
 ``` 
-To extract features from the **entire** image replace the placeholders with your directory paths and run:
+To extract features from the **entire image** replace the placeholders with your directory paths and run:
 ```sh
-docker run -v [DATASET_DIR]:/var/segmentations -v [RESULT_DIR]:/var/results octa-graph-extraction normal
+docker run -v [DATASET_DIR]:/var/segmentations -v [RESULT_DIR]:/var/results octa-graph-extraction full
+``` 
+To extract features from the **ETDRS grid** replace the placeholders with your directory paths and run:
+```sh
+docker run -v [DATASET_DIR]:/var/segmentations -v [FAZ_SAVE_DIR]:/var/faz -v [RESULT_DIR]:/var/results octa-graph-extraction etdrs
 ``` 
 
-<!-- docker run -v /home/linus/repos/OCTA-graph-extraction/test1:/var/segmentations -v /home/linus/repos/OCTA-graph-extraction/test2:/var/segmentation octa-graph-extraction NORMAL -->
 # 🔵 Manual Installation
 ## Prerequisites
 - Python: Install python from [the official website](https://www.python.org/downloads/). The code was tested with python version 3.10.
@@ -26,8 +29,6 @@ docker run -v [DATASET_DIR]:/var/segmentations -v [RESULT_DIR]:/var/results octa
     pip install -r requirements.txt
     ```
 - Voreen: We use the open-source software *Voreen* for graph and feature extraction from a segmentation map. Please install the tool from [this source](https://github.com/jqmcginnis/voreen_tools). You might also want to check the provided [Dockerfile](Dockerfile) to simplify the installation.
-
-
 
 
 ## Usage
@@ -57,4 +58,4 @@ python graph_feature_extractor.py --image_dir [PATH_TO_SRC_FOLDER] --output_dir 
 ```
 
 ### Performance
-To increase the speed of the analysis you can use multi-threading. Use `--threads [NUM_OF_THREADS]` to run the analysis with `[NUM_OF_THREADS]` concurrent threads.
+To increase the speed of the analysis our tool uses multi-threading. Use `--threads [NUM_OF_THREADS]` to run the analysis with `[NUM_OF_THREADS]` concurrent threads. By default, all available cpus are utilized.

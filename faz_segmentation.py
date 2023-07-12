@@ -9,6 +9,8 @@ import glob
 from tqdm import tqdm
 import numpy as np
 import os
+from multiprocessing import cpu_count
+import concurrent.futures
 
 def get_faz_mask_robust(img_orig: np.ndarray) -> np.ndarray:
     for border in [600,500,400,300,200, 100]:
@@ -60,7 +62,7 @@ if __name__ == "__main__":
     parser.add_argument('--source_dir', help="Absolute path to the folder containing all the segmentation maps", type=str, required=True)
     parser.add_argument('--source_files', help="Absolute path to the folder containing all the segmentation maps", type=str, default="/*.png")
     parser.add_argument('--output_dir', help="Absolute path to the folder where the faz segmentation files wil be stored.", type=str, default=None)
-    parser.add_argument('--threads', help="Absolute path to the folder where the faz segmentation files wil be stored.", type=int, default=1)
+    parser.add_argument('--threads', help="Number of parallel threads. By default all available threads but one are used.", type=int, default=-1)
     args = parser.parse_args()
 
     data_files: list[str] = natsorted(glob.glob(args.source_dir + args.source_files, recursive=True))
@@ -83,13 +85,23 @@ if __name__ == "__main__":
             os.makedirs(out_dir)
         Image.fromarray(img_and_faz.astype(np.uint8)).save(out_path)
 
-    if args.threads>1:
-        from multiprocessing.dummy import Pool as Pool
-        from multiprocessing.pool import ThreadPool
-        pool: ThreadPool = Pool(args.threads)
-        results = list(tqdm(pool.imap(task, data_files), total=len(data_files)))
+    if args.threads == -1:
+        # If no argument is provided, use all available threads but one
+        cpus = cpu_count()
+        threads = min(cpus-1 if cpus>1 else 1,args.num_samples)
     else:
-        for path in tqdm(data_files):
+        threads=args.threads
+
+    if args.threads>1:
+        # Multi processing
+        with tqdm(total=args.num_samples, desc="Segmenting FAZ...") as pbar:
+            with concurrent.futures.ProcessPoolExecutor(max_workers=threads) as executor:
+                future_dict = {executor.submit(task, data_files[i]): i for i in range(len(data_files))}
+                for future in concurrent.futures.as_completed(future_dict):
+                    i = future_dict[future]
+                    pbar.update(1)
+    else:
+        for path in tqdm(data_files, desc="Segmenting FAZ..."):
             task(path)
 
     
