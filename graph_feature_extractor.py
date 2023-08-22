@@ -147,13 +147,13 @@ if __name__ == "__main__":
     if args.threads == -1:
         # If no argument is provided, use all available threads but one
         cpus = cpu_count()
-        threads = min(cpus-1 if cpus>1 else 1,args.num_samples)
+        threads = min(cpus-1,len(ves_seg_files)) if cpus>1 else 1
     else:
         threads=args.threads
 
-    if args.threads>1:
+    if threads>1:
         # Multi processing
-        with tqdm(total=args.num_samples, desc="Extracting graph features...") as pbar:
+        with tqdm(total=len(ves_seg_files), desc="Extracting graph features...") as pbar:
             with concurrent.futures.ProcessPoolExecutor(max_workers=threads) as executor:
                 future_dict = {executor.submit(task, ves_seg_files[i]): i for i in range(len(ves_seg_files))}
                 for future in concurrent.futures.as_completed(future_dict):
@@ -161,5 +161,5 @@ if __name__ == "__main__":
                     pbar.update(1)
     else:
         # Single processing
-        for ves_seg_path in tqdm(ves_seg_files):
-            task(ves_seg_path, desc="Extracting graph features...")
+        for ves_seg_path in tqdm(ves_seg_files, desc="Extracting graph features..."):
+            task(ves_seg_path)
