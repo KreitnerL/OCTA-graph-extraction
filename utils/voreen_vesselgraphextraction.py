@@ -25,7 +25,7 @@ def extract_vessel_graph(volume_path: str,
     bulge_size_identifier = bulge_size_identifier.replace('.','_')
     edge_path = f'{outdir}{name}_edges.csv'
     node_path = f'{outdir}{name}_nodes.csv'
-    graph_path = f'{outdir}{name}_graph.json'
+    graph_path = f'{outdir}{name}_graph.vvg'
 
     # create temp directory
     temp_directory = os.path.join(tempdir,datetime.datetime.now().strftime("%Y-%m-%d-%H:%M:%S"))
@@ -44,7 +44,7 @@ def extract_vessel_graph(volume_path: str,
     filedata = filedata.replace("volume.nii", volume_path)
     filedata = filedata.replace("nodes.csv", node_path)
     filedata = filedata.replace("edges.csv", edge_path)
-    # filedata = filedata.replace("graph.vvg", graph_path)
+    filedata = filedata.replace("graph.vvg", graph_path)
     filedata = filedata.replace('<Property mapKey="continousSave" name="continousSave" value="false" /> <Property mapKey="graphFilePath"',
                                 f'<Property mapKey="continousSave" name="continousSave" value="{str(generate_graph_file).lower()}" /> <Property mapKey="graphFilePath"')
     filedata = filedata.replace('<Property mapKey="minBulgeSize" name="minBulgeSize" value="3" />', bulge_path)
@@ -66,7 +66,7 @@ def extract_vessel_graph(volume_path: str,
         --workdir {outdir} --tempdir {tempdir} --cachedir {cachedir}' + ("" if verbose else "--logLevel error >/dev/null 2>&1")
     )
     if generate_graph_file:
-        os.rename(f'{outdir}graph.vvg', graph_path)
+        os.rename(graph_path, graph_path.replace(".vvg", ".json"))
     with h5py.File(out_path, "r") as f:
         # Print all root level object names (aka keys) 
         # these can be group or dataset names 
