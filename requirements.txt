@@ -9,3 +9,4 @@ scikit-image
 pandas
 h5py
 matplotlib
+monai

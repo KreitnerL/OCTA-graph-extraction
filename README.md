@@ -1,9 +1,9 @@
 > ⚠️ **_NOTE:_** This repository is work in progress
 # OCTA GRAPH FEATURE ANALYSIS
 
-This repository enables the quantitative analysis of OCTA images. Given a vessel segmentation map, we provide code for FAZ segmentation and graph feature extraction. We use the open-source software *Voreen* for graph and feature extraction. See [https://github.com/TUM-AIMED/OCTA-seg](https://github.com/KreitnerL/OCTA-seg) to obtain detailed vessel segmentations for your OCTA images.
+This repository enables the quantitative analysis of OCTA images. Given a vessel segmentation map, we provide code for FAZ segmentation and graph feature extraction. We use the open-source software [*Voreen*](https://www.uni-muenster.de/Voreen/) for graph and feature extraction. See [https://github.com/TUM-AIMED/OCTA-seg](https://github.com/KreitnerL/OCTA-seg) to obtain detailed vessel segmentations for your OCTA images.
 <div style="text-align:center">
-    <img src="images/graph_extraction_pipeline.png">
+    <img src="images/graph_extraction_pipeline.png" style="max-width:1000px">
 </div>
 
 # 🔴 TL;DR: Get graph features from my segmentations
@@ -47,7 +47,7 @@ python graph_feature_extractor.py --image_dir [PATH_TO_SRC_FOLDER] --output_dir 
 ### ETDRS grid analysis:
 Collect the vessel segmentation maps and the matching faz segmentation files in two seperate folders. Note that the faz should always be computed on the entire image or the DVC image. If the image belongs to the left eye and contains an `"_OS_"` identifier, we define the left quadrant to be nasal. Otherwise the right quadrant is defined as nasal. The center of the ETDRS grid is set to the center of the FAZ.
 <div style="text-align:center">
-    <img src="images/etdrs.png">
+    <img src="images/etdrs.png" style="max-width:900px">
 </div>
 
 Create the analysis by running:
@@ -59,3 +59,9 @@ python graph_feature_extractor.py --image_dir [PATH_TO_SRC_FOLDER] --output_dir 
 
 ### Performance
 To increase the speed of the analysis our tool uses multi-threading. Use `--threads [NUM_OF_THREADS]` to run the analysis with `[NUM_OF_THREADS]` concurrent threads. By default, all available cpus are utilized.
+
+## Troubleshooting
+If you encounter OUT_OF_MEMORY errors during the build process, you can set the number of processes for `make` to 1:
+```sh
+docker build . -t octa-graph-extraction --build-arg NUMBER_OF_PROCESSES=1
+```

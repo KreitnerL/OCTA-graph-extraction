@@ -1,7 +1,5 @@
 import numpy as np
 from PIL import Image
-import torch
-from torch.nn.functional import interpolate
 from skimage.morphology import skeletonize
 from monai.transforms import KeepLargestConnectedComponent
 from natsort import natsorted
@@ -11,6 +9,8 @@ import numpy as np
 import os
 from multiprocessing import cpu_count
 import concurrent.futures
+import cv2
+from math import inf
 
 def get_faz_mask_robust(img_orig: np.ndarray) -> np.ndarray:
     for border in [600,500,400,300,200, 100]:
@@ -25,26 +25,20 @@ def get_faz_mask(img_orig: np.ndarray, BORDER=200) -> np.ndarray:
     img[:BORDER] = img[-BORDER:] = img[:,:BORDER]= img[:,-BORDER:] = 255
 
     # TODO
-    img_fuzzy_down = interpolate(
-        torch.tensor(img[np.newaxis,np.newaxis,:,:]/255, dtype=torch.float32),
-        scale_factor=.16, mode="area")
-    img_fuzzy = interpolate(
-        img_fuzzy_down,
-        size=img.shape, mode="bilinear").squeeze()
+    scale_factor=.16
+    out_shape = [int(scale_factor * d) for d in img.shape[-2:]]
+    img_fuzzy_down = cv2.resize(img/255, dsize=out_shape, interpolation=cv2.INTER_AREA)
+    img_fuzzy: np.ndarray = cv2.resize(img_fuzzy_down, dsize=img.shape, interpolation=cv2.INTER_LINEAR)
 
     img_fuzzy[img_fuzzy>0]=1
 
-    img_skel = skeletonize(img_fuzzy.numpy(),method = 'zhang')
+    img_skel = skeletonize(img_fuzzy,method = 'zhang')
 
     img_inverted = (1-img/255).astype(np.float32)[np.newaxis,:,:]
     faz = KeepLargestConnectedComponent(connectivity=1)(img_inverted)[0].numpy()
 
-    faz_larger_down = interpolate(
-        torch.tensor(faz[np.newaxis,np.newaxis,:,:], dtype=torch.float32),
-        scale_factor=.16, mode="area")
-    faz_larger = interpolate(
-        faz_larger_down,
-        size=faz.shape, mode="bilinear").squeeze()
+    faz_larger_down = cv2.resize(faz, dsize=out_shape, interpolation=cv2.INTER_AREA)
+    faz_larger: np.ndarray = cv2.resize(faz_larger_down, dsize=faz.shape, interpolation=cv2.INTER_LINEAR)
     faz_larger[faz_larger>0]=1
 
     img_merged = np.copy(img/255)
@@ -63,6 +57,7 @@ if __name__ == "__main__":
     parser.add_argument('--source_files', help="Absolute path to the folder containing all the segmentation maps", type=str, default="/*.png")
     parser.add_argument('--output_dir', help="Absolute path to the folder where the faz segmentation files wil be stored.", type=str, default=None)
     parser.add_argument('--threads', help="Number of parallel threads. By default all available threads but one are used.", type=int, default=-1)
+    parser.add_argument('--num_samples', help="Maximum number of samples to process.", type=int, default=inf)
     args = parser.parse_args()
 
     data_files: list[str] = natsorted(glob.glob(args.source_dir + args.source_files, recursive=True))

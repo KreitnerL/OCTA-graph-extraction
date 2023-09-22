@@ -69,9 +69,9 @@ if __name__ == "__main__":
     parser.add_argument('--voreen_tool_path', help="Absolute path to the bin folder of your voreen installation", type=str, required=True)
     parser.add_argument('--output_dir', help="Absolute path to the folder where the graph and feature files should be stored."
                         +"If no folder is provided, the files will be stored in the same directory as the source images.", type=str, default=None)
-    parser.add_argument('--bulge_size', help="Numeric value of the bulge_size parameter to control the sensitivity", type=float, default=5)
+    parser.add_argument('--bulge_size', help="Numeric value of the bulge_size parameter to control the sensitivity", type=float, default=3)
     parser.add_argument('--graph_image', help="Generate an image of the extracted graph", type=bool, default=True)
-    parser.add_argument('--colorize_graph', help="Generate colored radius graph", type=bool, default=False)
+    parser.add_argument('--colorize_graph', help="Generate colored radius graph", type=bool, default=True)
     parser.add_argument('--generate_graph_file', help="Generate the graph JSON file", type=bool, default=False)
     parser.add_argument('--verbose', action="store_true", help="Print log information from voreen")
 
@@ -89,11 +89,11 @@ if __name__ == "__main__":
         assert bool(args.faz_dir)
 
         def get_code_name(filename: str) -> str:
-            return filename.removeprefix("faz_").removeprefix("pred_").replace(" - Kopie", "").replace(" ", "_").removesuffix("_OCTA.png").removesuffix(".png")
+            return filename.removeprefix("faz_").removeprefix("pred_").replace(" - Kopie", "").replace(" ", "_").removesuffix("_OCTA.png").removesuffix(".png").replace("DCP", "DVC")
 
         ves_seg_files = natsorted(glob.glob(f'{args.image_dir}/**/*.png', recursive=True))
         faz_seg_files = natsorted(glob.glob(f'{args.faz_dir}/**/*.png', recursive=True))
-        dvc_faz_code_name_map = {get_code_name(path.split("/")[-1]): path for path in faz_seg_files if "DVC" in path}
+        dvc_faz_code_name_map = {get_code_name(path.split("/")[-1]): path for path in faz_seg_files if ("DVC" in path) or ("DCP" in path)}
 
         def task(ves_seg_path: str):
             faz_code_name = get_code_name(ves_seg_path.split("/")[-1]).replace("SVC", "DVC")
