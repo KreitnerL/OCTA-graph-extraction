@@ -90,7 +90,7 @@ def rasterize_forest(forest: dict,
         img_gray = np.array(Image.fromarray(img).convert("L")).astype(np.uint16)
     return img_gray, blackdict
 
-def node_edges_to_graph(nodes_file_path: str, edges_file_path: str, shape: tuple[int], colorize=False) -> np.ndarray:
+def node_edges_to_graph(nodes_file_path: str, edges_file_path: str, shape: tuple[int], colorize=False, radius_scale_factor=1) -> np.ndarray:
     nodes = dict()
     with open(nodes_file_path, newline='') as csvfile:
         reader = csv.DictReader(csvfile, delimiter=";")
@@ -106,7 +106,7 @@ def node_edges_to_graph(nodes_file_path: str, edges_file_path: str, shape: tuple
             p1 = np.array(nodes[row["node1id"]])/1216
             p2 = np.array(nodes[row["node2id"]])/1216
             # if colorize:
-            radius = float(row["avgRadiusAvg"])*2/1216
+            radius = float(row["avgRadiusAvg"])*radius_scale_factor/1216
             # else:
             #     radius=1/1216/1.3
             forest.append({"node1": p1, "node2": p2, "radius": radius})
