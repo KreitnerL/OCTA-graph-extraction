@@ -11,6 +11,7 @@ from multiprocessing import cpu_count
 import concurrent.futures
 import cv2
 from math import inf
+import nibabel as nib
 
 def get_faz_mask_robust(img_orig: np.ndarray) -> np.ndarray:
     for border in [600,500,400,300,200, 100]:
@@ -65,12 +66,14 @@ if __name__ == "__main__":
 
     def task(path: str):
         name = path.split("/")[-1]
-        img_orig = np.array(Image.open(path))
+        if path.endswith(".nii.gz"):
+            nifti: nib.Nifti1Image = nib.load(path)
+            image_3d = nifti.get_fdata()
+            img_orig = np.max(image_3d, axis=-1)
+            path = path.replace(".nii.gz", ".png")
+        else:
+            img_orig = np.array(Image.open(path))
         faz_final = get_faz_mask_robust(img_orig)
-
-        # img_and_faz = np.copy(img_orig)
-        # img_and_faz[(faz_final==1) & (img_and_faz==0)]=127
-        # Image.fromarray(img_and_faz.astype(np.uint8)).save(path)
 
         img_and_faz = np.zeros_like(img_orig)
         img_and_faz[(faz_final==1) & (img_and_faz==0)]=255
