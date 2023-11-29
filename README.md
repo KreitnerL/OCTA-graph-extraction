@@ -20,6 +20,8 @@ To extract features from the **ETDRS grid** replace the placeholders with your d
 ```sh
 docker run -v [DATASET_DIR]:/var/segmentations -v [FAZ_SAVE_DIR]:/var/faz -v [RESULT_DIR]:/var/results octa-graph-extraction etdrs
 ``` 
+> [!NOTE]
+> Voreen works best on 3D segmentations. We recommend to use our [3D reconstruction tool](https://github.com/TUM-AIMED/OCTA-seg#3-generate-a-3d-reconstruction-of-your-2d-segmentation-map-results-will-be-given-as-nifti-file) to convert 2D segmentation masks to a 3D nifti file.
 
 # 🔵 Manual Installation
 ## Prerequisites
@@ -61,7 +63,7 @@ python graph_feature_extractor.py --image_dir [PATH_TO_SRC_FOLDER] --output_dir 
 To increase the speed of the analysis our tool uses multi-threading. Use `--threads [NUM_OF_THREADS]` to run the analysis with `[NUM_OF_THREADS]` concurrent threads. By default, all available cpus are utilized.
 
 ## Troubleshooting
-If you encounter OUT_OF_MEMORY errors during the build process, you can set the number of processes for `make` to 1:
+If you encounter OUT_OF_MEMORY errors during the build process, you can set the number of processes for `make` to 1. Note that this will significantly increase the build runtime!
 ```sh
 docker build . -t octa-graph-extraction --build-arg NUMBER_OF_PROCESSES=1
 ```
