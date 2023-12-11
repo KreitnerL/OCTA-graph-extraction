@@ -44,7 +44,7 @@ def get_ETDRS_grid_indices(center_index, radius: float=1216/6, radius_2: float=1
     return center_indices, q1_indices, q2_indices, q3_indices, q4_indices
 
 def get_ETDRS_grid_masks(faz: np.ndarray, center_radius=1216/6, inner_radius=1216/6 * 2.5) -> tuple[np.ndarray]:
-    center = ndimage.center_of_mass(faz)
+    center = [int(i) for i in ndimage.center_of_mass(faz)]
     
     center_indices, q1_indices, q2_indices, q3_indices, q4_indices = get_ETDRS_grid_indices(center, center_radius, inner_radius)
 

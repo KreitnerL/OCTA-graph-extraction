@@ -54,14 +54,14 @@ def get_faz_mask(img_orig: np.ndarray, BORDER=200) -> np.ndarray:
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--source_dir', help="Absolute path to the folder containing all the segmentation maps", type=str, required=True)
-    parser.add_argument('--source_files', help="Absolute path to the folder containing all the segmentation maps", type=str, default="/*.png")
+    parser.add_argument('--source_files', help="Absolute path to the folder containing the DVC segmentation maps", type=str, required=True)
     parser.add_argument('--output_dir', help="Absolute path to the folder where the faz segmentation files wil be stored.", type=str, default=None)
     parser.add_argument('--threads', help="Number of parallel threads. By default all available threads but one are used.", type=int, default=-1)
     parser.add_argument('--num_samples', help="Maximum number of samples to process.", type=int, default=inf)
     args = parser.parse_args()
 
-    data_files: list[str] = natsorted(glob.glob(args.source_dir + args.source_files, recursive=True))
+    data_files: list[str] = natsorted(glob.glob(args.source_files, recursive=True))
+    source_folder = os.path.dirname(os.path.commonprefix(data_files))
     output_dir: str = args.output_dir
 
     def task(path: str):
@@ -77,7 +77,7 @@ if __name__ == "__main__":
 
         img_and_faz = np.zeros_like(img_orig)
         img_and_faz[(faz_final==1) & (img_and_faz==0)]=255
-        out_path = path.replace(args.source_dir, output_dir).replace(name, "faz_"+name)
+        out_path = path.replace(source_folder, output_dir).replace(name, "faz_"+name)
         out_dir = "/".join(out_path.split("/")[:-1])
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)

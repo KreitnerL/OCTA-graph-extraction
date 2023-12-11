@@ -4,6 +4,7 @@ import pathlib
 from shutil import copyfile
 import h5py
 import numpy as np
+import warnings
 
 
 def extract_vessel_graph(volume_path: str,
@@ -72,7 +73,9 @@ def extract_vessel_graph(volume_path: str,
         # these can be group or dataset names 
         a_group_key = list(f.keys())[0]
         ds_arr = f[a_group_key][()]  # returns as a numpy array
-    os.system(f"rm -rf '{absolute_temp_path}'")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            os.system(f"rm -rf '{absolute_temp_path}'")
     ret = ds_arr[1]
     ret = np.flip(np.rot90(ret),0)
     return ret
