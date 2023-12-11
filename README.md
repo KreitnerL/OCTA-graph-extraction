@@ -15,14 +15,19 @@ docker build . -t octa-graph-extraction
 ``` 
 To extract features from the **entire image** replace the placeholders with your directory paths and run:
 ```sh
-docker run -v [DATASET_DIR]:/var/segmentations -v [RESULT_DIR]:/var/results octa-graph-extraction full
+docker run -v [DATASET_DIR]:/var/segmentations -v [RESULT_DIR]:/var/results octa-graph-extraction graph_extraction_full
 ``` 
-To extract features from the **ETDRS grid** replace the placeholders with your directory paths and run:
+To extract features from the **ETDRS grid** with FAZ segmentation replace the placeholders with your directory paths and run:
 ```sh
-docker run -v [DATASET_DIR]:/var/segmentations -v [FAZ_SAVE_DIR]:/var/faz -v [RESULT_DIR]:/var/results octa-graph-extraction etdrs
+docker run -v [DATASET_DIR]:/var/segmentations -v [FAZ_SAVE_DIR]:/var/faz -v [RESULT_DIR]:/var/results octa-graph-extraction etdrs_pipeline
 ``` 
 > [!NOTE]
 > Voreen works best on 3D segmentations. We recommend to use our [3D reconstruction tool](https://github.com/TUM-AIMED/OCTA-seg#3-generate-a-3d-reconstruction-of-your-2d-segmentation-map-results-will-be-given-as-nifti-file) to convert 2D segmentation masks to a 3D nifti file.
+
+# Notebook examples
+Check out our two jupyter notebooks where we provide a detailed example for ETDRS analysis of a dataset with all steps. You can choose between:
+- [docker_example_ETDRS_analysis.ipynb](./docker_example_ETDRS_analysis.ipynb) (Only uses the docker image)
+- [manual_example_ETDRS_analysis.ipynb](./manual_example_ETDRS_analysis.ipynb) (Uses the python files)
 
 # 🔵 Manual Installation
 ## Prerequisites
