@@ -90,9 +90,9 @@ if __name__ == "__main__":
     else:
         threads=args.threads
 
-    if args.threads>1:
+    if threads>1:
         # Multi processing
-        with tqdm(total=args.num_samples, desc="Segmenting FAZ...") as pbar:
+        with tqdm(total=min(args.num_samples, len(data_files)), desc="Segmenting FAZ...") as pbar:
             with concurrent.futures.ProcessPoolExecutor(max_workers=threads) as executor:
                 future_dict = {executor.submit(task, data_files[i]): i for i in range(len(data_files))}
                 for future in concurrent.futures.as_completed(future_dict):

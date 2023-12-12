@@ -21,7 +21,7 @@ def remove_extenstions(basename: str):
     return basename.removesuffix(".png").removesuffix("_edges.csv").removesuffix("_full")
 
 def code_name(path: str):
-    return remove_plexus_code(remove_extenstions(os.path.basename(path)))
+    return remove_plexus_code(remove_extenstions(os.path.basename(path))).removeprefix("faz_")
     
 def sanity_filter(df: pandas.DataFrame):
     return (df.volume > 0) & (df.distance > 0) & (df.curveness > 0) & (df.avgRadiusAvg > 0)
@@ -46,7 +46,7 @@ if __name__ == "__main__":
     data_files: list[str] = natsorted(glob.glob(os.path.join(args.source_dir, "**/*_edges.csv"), recursive=True))
     assert len(data_files)>0, f"No '_edges.csv' files found in folder {args.source_dir}!"
 
-    faz_map = None
+    faz_map=dict()
     if args.faz_files:
         faz_files: list[str] = natsorted(glob.glob(args.faz_files, recursive=True))
         if len(data_files)==0:
@@ -105,7 +105,7 @@ if __name__ == "__main__":
             dd["Eye"] = "OD" if "OD" in image_ID else "OS"
             dd["Layer"] = "SVC" if "SVC" in data_file else "DVC"
 
-            if faz_map is not None:
+            if faz_map:
                 dd["FAZ area [mm²]"] = faz_map[code_name(data_file).removesuffix(f"_{area}")]
             
             for a in AREA_FACTOR_MAP.keys():

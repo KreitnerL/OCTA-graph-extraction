@@ -121,7 +121,7 @@ if __name__ == "__main__":
             extension = ".nii.gz" if path.endswith(".nii.gz") else "."+path.split(".")[-1]
             return os.path.basename(path).removesuffix(extension).removeprefix("faz_")
 
-        faz_seg_files = natsorted(glob.glob(f'{args.faz_dir}/**/*', recursive=True))
+        faz_seg_files = natsorted(glob.glob(f'{args.faz_dir}/**/*.*', recursive=True))
         assert len(faz_seg_files)>0, f"Found no matching FAZ files at path {args.faz_dir}! Note, this script currently only supports .png, .jpg, and .bmp faz segmentation files."
 
         faz_code_name_map = {get_code_name(path): path for path in faz_seg_files if ("DVC" in path) or ("DCP" in path)}

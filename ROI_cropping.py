@@ -16,7 +16,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    data_files = natsorted(glob.glob(f'{args.input_dir}/*.png', recursive=True))
+    data_files = natsorted(glob.glob(f'{args.input_dir}/**/*.png', recursive=True))
     assert len(data_files)>0, f"No input files found for path {args.input_dir}"
 
     problematic = []
