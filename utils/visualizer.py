@@ -18,7 +18,7 @@ def rasterize_forest(forest: dict,
                      max_dropout_prob=0,
                      blackdict: dict[str, bool]=None,
                      colorize=False,
-                     continous=True):
+                     thresholds=None):
     # initialize canvas with defined image dimensions
     if not radius_list:
         radius_list=[]
@@ -67,13 +67,14 @@ def rasterize_forest(forest: dict,
     if colorize:
         colors=np.copy(np.array(radii))
         colors = colors/no_pixels_x/1.3*3
-        if continous:
+        if thresholds is None:
             colors=np.minimum(colors/0.03,1)
         else:
             c_new = np.zeros_like(colors)
-            c_new[colors<=0.01]=0.1
-            c_new[(colors>0.01) & (colors<=0.02)]=0.5
-            c_new[colors>0.02]=1
+            intensities = np.linspace(0.1,1, num=len(thresholds+1))
+            thresholds = [0,*thresholds,math.inf]
+            for i in range(1,len(thresholds)):
+                c_new[(thresholds[i-1]<colors) & (colors<=thresholds[i])]=intensities[i-1]
             colors=c_new
         colors=cm.plasma(colors)
     else:
@@ -90,25 +91,21 @@ def rasterize_forest(forest: dict,
         img_gray = np.array(Image.fromarray(img).convert("L")).astype(np.uint16)
     return img_gray, blackdict
 
-def node_edges_to_graph(nodes_file_path: str, edges_file_path: str, shape: tuple[int], colorize=False) -> np.ndarray:
+def node_edges_to_graph(nodes_file_path: str, edges_file_path: str, shape: tuple[int], colorize=False, radius_scale_factor=1, thresholds=None) -> np.ndarray:
     nodes = dict()
     with open(nodes_file_path, newline='') as csvfile:
         reader = csv.DictReader(csvfile, delimiter=";")
         for row in reader:
-            nodes[row["id"]] = [float(row["pos_x"]), float(row["pos_y"])]
+            nodes[row["id"]] = [float(row["pos_x"]), float(row["pos_y"]), float(row["pos_z"])]
     
-    img = np.zeros(shape)
-    cnt = 0
+    img = np.zeros(shape[:2])
     with open(edges_file_path, newline='') as csvfile:
         reader = csv.DictReader(csvfile,delimiter=";")
         forest = []
         for row in reader:
-            p1 = np.array(nodes[row["node1id"]])/1216
-            p2 = np.array(nodes[row["node2id"]])/1216
-            # if colorize:
-            radius = float(row["avgRadiusAvg"])*2/1216
-            # else:
-            #     radius=1/1216/1.3
+            p1 = np.array(nodes[row["node1id"]])/shape[0]
+            p2 = np.array(nodes[row["node2id"]])/shape[0]
+            radius = float(row["avgRadiusAvg"])*radius_scale_factor/shape[0]
             forest.append({"node1": p1, "node2": p2, "radius": radius})
-    img, _ = rasterize_forest(forest, 16, colorize=colorize, continous=True)
+    img, _ = rasterize_forest(forest, 16, colorize=colorize, thresholds=thresholds)
     return img
