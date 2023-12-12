@@ -39,8 +39,8 @@ if __name__ == "__main__":
     parser.add_argument('--mm', type=float, default=3.0, help="Height of the segmentation volume in mm. Default is 3 mm")
     parser.add_argument('--radius_correction_factor', type=float, default=1.3, help="Correction factor to scale the extracted radii with. Vessels in OCTA images appear larger than they really are. If you used our tool for vesser segementation, use the default value of 1.3")
     parser.add_argument('--etdrs', action="store_true", help="If set, use ETDRS grid stratification")
-    parser.add_argument('--center_radius', type=float, default=1216/6, help="Radius of ETDRS center radius w.r.t. the image length")
-    parser.add_argument('--inner_radius', type=float, default=1216/2.4, help="Radius of ETDRS center radius w.r.t. the image length")
+    parser.add_argument('--center_radius', type=float, default=3/6, help="Radius of ETDRS center radius in mm")
+    parser.add_argument('--inner_radius', type=float, default=3/2.4, help="Radius of ETDRS center radius in mm")
     args = parser.parse_args()
 
     data_files: list[str] = natsorted(glob.glob(os.path.join(args.source_dir, "**/*_edges.csv"), recursive=True))
@@ -60,8 +60,9 @@ if __name__ == "__main__":
             faz_map[code_name(faz_file)] = faz_area
 
     if args.etdrs:
+        assert faz_map, "FAZ files are required for ETDRS analysis!"
         # We compute the volume of each ETDRS sector to compute the vessel density
-        center_mask, q1_mask, q2_mask, q3_mask, q4_mask = get_ETDRS_grid_masks(np.ones_like(faz), center_radius=args.center_radius, inner_radius=args.inner_radius)
+        center_mask, q1_mask, q2_mask, q3_mask, q4_mask = get_ETDRS_grid_masks(np.ones_like(faz), center_radius=args.center_radius/args.mm*faz.shape[0], inner_radius=args.inner_radius/args.mm*faz.shape[0])
         AREA_FACTOR_MAP = {
             "C0": center_mask.sum(),
             "S1": q1_mask.sum(),

@@ -13,11 +13,8 @@ For convenience, we provide a docker file to perform feature extraction:
 # Build Docker image. (This can take a while. Only required once.)
 docker build . -t octa-graph-extraction
 ``` 
-To extract features from the **entire image** replace the placeholders with your directory paths and run:
-```sh
-docker run -v [DATASET_DIR]:/var/segmentations -v [RESULT_DIR]:/var/results octa-graph-extraction graph_extraction_full
-``` 
-To extract features from the **ETDRS grid** with FAZ segmentation replace the placeholders with your directory paths and run:
+
+To extract features from the ETDRS grid with FAZ segmentation replace the placeholders with your directory paths and run:
 ```sh
 docker run -v [DATASET_DIR]:/var/segmentations -v [FAZ_SAVE_DIR]:/var/faz -v [RESULT_DIR]:/var/results octa-graph-extraction etdrs_pipeline
 ``` 
@@ -28,6 +25,32 @@ docker run -v [DATASET_DIR]:/var/segmentations -v [FAZ_SAVE_DIR]:/var/faz -v [RE
 Check out our two jupyter notebooks where we provide a detailed example for ETDRS analysis of a dataset with all steps. You can choose between:
 - [docker_example_ETDRS_analysis.ipynb](./docker_example_ETDRS_analysis.ipynb) (Only uses the docker image)
 - [manual_example_ETDRS_analysis.ipynb](./manual_example_ETDRS_analysis.ipynb) (Uses the python files)
+
+# List of all docker features
+- ROI Cropping: 
+    ```sh
+    docker run -v [DATASET_DIR]:/var/images -v [OUTPUT_DIR]:/var/results octa-graph-extraction roi
+    ```
+- FAZ segmentation from 2D segmentation masks:
+    ```sh
+    docker run -v [SEGMENTATIONS_DIR]:/var/segmentations -v [OUTPUT_DIR]:/var/faz octa-graph-extraction faz_seg [--threads THREADS] [--num_samples NUM_SAMPLES]
+    ```
+- Graph feature extraction of full 2D segmentation mask or 3D segmentation volume using Voreen:
+    ```sh
+    docker run -v [SEGMENTATIONS_DIR]:/var/segmentations -v [OUTPUT_DIR]:/var/results octa-graph-extraction graph_extraction_full [--bulge_size BULGE_SIZE] [--no_graph_image] [--no_colorize_graph] [--thresholds THRESHOLDS] [--generate_graph_file] [--threads THREADS] [--verbose]
+    ```
+- Graph feature extraction using ETDRS grid of 2D segmentation mask or 3D segmentation volume using Voreen:
+    ```sh
+    docker run -v [SEGMENTATIONS_DIR]:/var/segmentations -v [FAZ_SEG_DIR]:/var/faz -v [OUTPUT_DIR]:/var/results octa-graph-extraction graph_extraction_etdrs [--bulge_size BULGE_SIZE] [--no_graph_image] [--no_colorize_graph] [--thresholds THRESHOLDS] [--generate_graph_file] [--threads THREADS] [--verbose]
+    ```
+- FAZ segmentation and graph feature extraction using ETDRS grid of 2D segmentation mask or 3D segmentation volume using Voreen:
+    ```sh
+    docker run -v [SEGMENTATIONS_DIR]:/var/segmentations -v [OUTPUT_DIR]:/var/results octa-graph-extraction etdrs_pipeline [--bulge_size BULGE_SIZE] [--no_graph_image] [--no_colorize_graph] [--thresholds THRESHOLDS] [--generate_graph_file] [--threads THREADS] [--verbose]
+    ```
+- Generate analysis summary file of dataset
+    ```sh
+    docker run -v [GRAPH_FEATURES_DIR]:/var/graph_files -v [OUTPUT_DIR]:/var/results [-v [FAZ_DIR]:/var/faz] octa-graph-extraction analysis [--radius_thresholds THRESHOLDS] [--from_3d] [--mm HEIGHT_IN_MM] [--radius_correction_factor FACTOR] [--etdrs] [--center_radius ETDRS_CENTER_RADIUS_IN_MM] [--inner_radius ETDRS_INNER_RADIUS_IN_MM]
+    ```
 
 # 🔵 Manual Installation
 ## Prerequisites
