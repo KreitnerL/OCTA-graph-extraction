@@ -75,7 +75,7 @@ def extract_graph_features(img_nii: nib.Nifti1Image,
     df_nodes = pd.read_csv(nodes_file, sep=";", index_col=0)
     df_edges, df_nodes = _sanity_filter(df_edges,df_nodes, z_dim=img_nii.shape[2])
     df_nodes.to_csv(nodes_file, sep=";")
-    df_edges.to_csv(edges_file, sep=";", index=False)
+    df_edges.to_csv(edges_file, sep=";")
 
     if graph_image:
         graph_img = node_edges_to_graph(nodes_file, edges_file, img_nii.shape[:2], colorize=colorize, radius_scale_factor=1 if ves_seg_3d else 2, thresholds=thresholds)
