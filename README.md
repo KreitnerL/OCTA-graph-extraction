@@ -16,7 +16,7 @@ docker build . -t octa-graph-extraction
 
 To extract features from the ETDRS grid with FAZ segmentation replace the placeholders with your directory paths and run:
 ```sh
-docker run -v [DATASET_DIR]:/var/segmentations -v [FAZ_SAVE_DIR]:/var/faz -v [RESULT_DIR]:/var/results octa-graph-extraction etdrs_pipeline
+docker run --rm -v [DATASET_DIR]:/var/segmentations -v [FAZ_SAVE_DIR]:/var/faz -v [RESULT_DIR]:/var/results octa-graph-extraction etdrs_pipeline
 ``` 
 > [!NOTE]
 > Voreen works best on 3D segmentations. We recommend to use our [3D reconstruction tool](https://github.com/TUM-AIMED/OCTA-seg#3-generate-a-3d-reconstruction-of-your-2d-segmentation-map-results-will-be-given-as-nifti-file) to convert 2D segmentation masks to a 3D nifti file.
@@ -29,27 +29,27 @@ Check out our two jupyter notebooks where we provide a detailed example for ETDR
 # List of all docker features
 - ROI Cropping: 
     ```sh
-    docker run -v [DATASET_DIR]:/var/images -v [OUTPUT_DIR]:/var/results octa-graph-extraction roi
+    docker run --rm -v [DATASET_DIR]:/var/images -v [OUTPUT_DIR]:/var/results octa-graph-extraction roi
     ```
 - FAZ segmentation from 2D segmentation masks:
     ```sh
-    docker run -v [SEGMENTATIONS_DIR]:/var/segmentations -v [OUTPUT_DIR]:/var/faz octa-graph-extraction faz_seg [--threads THREADS] [--num_samples NUM_SAMPLES]
+    docker run --rm -v [SEGMENTATIONS_DIR]:/var/segmentations -v [OUTPUT_DIR]:/var/faz octa-graph-extraction faz_seg [--threads THREADS] [--num_samples NUM_SAMPLES]
     ```
 - Graph feature extraction of full 2D segmentation mask or 3D segmentation volume using Voreen:
     ```sh
-    docker run -v [SEGMENTATIONS_DIR]:/var/segmentations -v [OUTPUT_DIR]:/var/results octa-graph-extraction graph_extraction_full [--bulge_size BULGE_SIZE] [--no_graph_image] [--no_colorize_graph] [--thresholds THRESHOLDS] [--generate_graph_file] [--threads THREADS] [--verbose]
+    docker run --rm -v [SEGMENTATIONS_DIR]:/var/segmentations -v [OUTPUT_DIR]:/var/results octa-graph-extraction graph_extraction_full [--bulge_size BULGE_SIZE] [--no_graph_image] [--no_colorize_graph] [--thresholds THRESHOLDS] [--generate_graph_file] [--threads THREADS] [--verbose]
     ```
 - Graph feature extraction using ETDRS grid of 2D segmentation mask or 3D segmentation volume using Voreen:
     ```sh
-    docker run -v [SEGMENTATIONS_DIR]:/var/segmentations -v [FAZ_SEG_DIR]:/var/faz -v [OUTPUT_DIR]:/var/results octa-graph-extraction graph_extraction_etdrs [--bulge_size BULGE_SIZE] [--no_graph_image] [--no_colorize_graph] [--thresholds THRESHOLDS] [--generate_graph_file] [--threads THREADS] [--verbose]
+    docker run --rm -v [SEGMENTATIONS_DIR]:/var/segmentations -v [FAZ_SEG_DIR]:/var/faz -v [OUTPUT_DIR]:/var/results octa-graph-extraction graph_extraction_etdrs [--bulge_size BULGE_SIZE] [--no_graph_image] [--no_colorize_graph] [--thresholds THRESHOLDS] [--generate_graph_file] [--threads THREADS] [--verbose]
     ```
 - FAZ segmentation and graph feature extraction using ETDRS grid of 2D segmentation mask or 3D segmentation volume using Voreen:
     ```sh
-    docker run -v [SEGMENTATIONS_DIR]:/var/segmentations -v [OUTPUT_DIR]:/var/results octa-graph-extraction etdrs_pipeline [--bulge_size BULGE_SIZE] [--no_graph_image] [--no_colorize_graph] [--thresholds THRESHOLDS] [--generate_graph_file] [--threads THREADS] [--verbose]
+    docker run --rm -v [SEGMENTATIONS_DIR]:/var/segmentations -v [OUTPUT_DIR]:/var/results octa-graph-extraction etdrs_pipeline [--bulge_size BULGE_SIZE] [--no_graph_image] [--no_colorize_graph] [--thresholds THRESHOLDS] [--generate_graph_file] [--threads THREADS] [--verbose]
     ```
 - Generate analysis summary file of dataset
     ```sh
-    docker run -v [GRAPH_FEATURES_DIR]:/var/graph_files -v [OUTPUT_DIR]:/var/results [-v [FAZ_DIR]:/var/faz] octa-graph-extraction analysis [--radius_thresholds THRESHOLDS] [--from_3d] [--mm HEIGHT_IN_MM] [--radius_correction_factor FACTOR] [--etdrs] [--center_radius ETDRS_CENTER_RADIUS_IN_MM] [--inner_radius ETDRS_INNER_RADIUS_IN_MM]
+    docker run --rm -v [GRAPH_FEATURES_DIR]:/var/graph_files -v [OUTPUT_DIR]:/var/results [-v [FAZ_DIR]:/var/faz] octa-graph-extraction analysis [--radius_thresholds THRESHOLDS] [--from_3d] [--mm HEIGHT_IN_MM] [--radius_correction_factor FACTOR] [--etdrs] [--center_radius ETDRS_CENTER_RADIUS_IN_MM] [--inner_radius ETDRS_INNER_RADIUS_IN_MM]
     ```
 
 # 🔵 Manual Installation
