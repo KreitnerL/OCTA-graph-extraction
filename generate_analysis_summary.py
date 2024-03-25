@@ -17,7 +17,7 @@ def remove_plexus_code(name: str):
 def remove_eye_code(name: str):
      return name.replace("_OS", "").replace("_OD", "")
 
-def remove_extenstions(basename: str):
+def remove_extentions(basename: str):
     return basename.removesuffix(".png").removesuffix("_edges.csv").removesuffix("_full")
 
 def code_name(path: str):
@@ -91,7 +91,7 @@ if __name__ == "__main__":
             group, image_ID, name = data_file.split("/")[-3:]
         else:
             group, name = data_file.split("/")[-2:]
-            image_ID = remove_extenstions(name)
+            image_ID = remove_extentions(name)
         image_ID = image_ID.removeprefix("pred_")
         
         sector_codes = [k for k in AREA_FACTOR_MAP.keys() if k in name]
@@ -139,7 +139,7 @@ if __name__ == "__main__":
                 if args.from_3d:
                     dd[title] = (2*df[condition].volume).divide(df[condition].avgRadiusAvg * pi).sum() / area_factor * 100 # Rescale 3D volume to 2D area
                 else:
-                    dd[title] = df[condition].volume.sum() / area_factor * 100 # Rescale 3D volume to 2D area
+                    dd[title] = df[condition].volume.sum() / area_factor * 100
             else:
                 dd[title] = 0
         if area=="C0" or area=="full":

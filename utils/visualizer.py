@@ -44,7 +44,6 @@ def rasterize_forest(forest: dict,
         radius = float(edge["radius"])
         if radius<min_radius or radius>max_radius:
             continue
-        radius *= 1.3
         current_node = edge["node1"]
         proximal_node = edge["node2"]
 
@@ -66,7 +65,7 @@ def rasterize_forest(forest: dict,
         radii.append(thickness)
     if colorize:
         colors=np.copy(np.array(radii))
-        colors = colors/no_pixels_x/1.3*3
+        colors = colors/no_pixels_x/1.3*3*2
         if thresholds is None:
             colors=np.minimum(colors/0.03,1)
         else:
