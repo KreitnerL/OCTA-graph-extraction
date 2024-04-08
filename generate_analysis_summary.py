@@ -21,7 +21,7 @@ def remove_extentions(basename: str):
     return basename.removesuffix(".png").removesuffix("_edges.csv").removesuffix("_full")
 
 def code_name(path: str):
-    return remove_plexus_code(remove_extenstions(os.path.basename(path))).removeprefix("faz_")
+    return remove_plexus_code(remove_extentions(os.path.basename(path))).removeprefix("faz_").removeprefix("model_").removeprefix("model_").replace(" OCTA", "").replace(" ", "_").replace("__", "_")
     
 def sanity_filter(df: pandas.DataFrame):
     return (df.volume > 0) & (df.distance > 0) & (df.curveness > 0) & (df.avgRadiusAvg > 0)

@@ -131,14 +131,14 @@ if __name__ == "__main__":
             image_name = os.path.basename(ves_seg_path)
             extension = ".nii.gz" if ves_seg_path.endswith(".nii.gz") else "."+ves_seg_path.split(".")[-1]
             if extension == ".nii.gz":
-                faz_code_name = get_code_name(ves_seg_path)
+                faz_code_name = get_code_name(ves_seg_path).replace("SVC", "DVC")
                 if faz_code_name not in faz_code_name_map:
                     print(f"Skipping analysis for image {ves_seg_path}. No FAZ found.")
                     return
                 img_nii: nib.Nifti1Image = nib.load(ves_seg_path)
                 ves_seg_3d = img_nii.get_fdata()
             else:
-                faz_code_name = get_code_name(ves_seg_path)
+                faz_code_name = get_code_name(ves_seg_path).replace("SVC", "DVC")
                 if faz_code_name not in faz_code_name_map:
                     print(f"Skipping analysis for image {ves_seg_path}. No FAZ found.")
                     return
