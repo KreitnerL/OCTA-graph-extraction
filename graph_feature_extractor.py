@@ -119,7 +119,7 @@ if __name__ == "__main__":
 
         def get_code_name(path: str) -> str:
             extension = ".nii.gz" if path.endswith(".nii.gz") else "."+path.split(".")[-1]
-            return os.path.basename(path).removesuffix(extension).removeprefix("faz_")
+            return os.path.basename(path).removesuffix(extension).removeprefix("faz_").removeprefix("model_").removeprefix("model_")
 
         faz_seg_files = natsorted(glob.glob(f'{args.faz_dir}/**/*.*', recursive=True))
         assert len(faz_seg_files)>0, f"Found no matching FAZ files at path {args.faz_dir}! Note, this script currently only supports .png, .jpg, and .bmp faz segmentation files."
