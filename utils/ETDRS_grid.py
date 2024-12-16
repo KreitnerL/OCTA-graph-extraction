@@ -48,19 +48,19 @@ def get_ETDRS_grid_masks(faz: np.ndarray, center_radius=1216/6, inner_radius=121
     
     center_indices, q1_indices, q2_indices, q3_indices, q4_indices = get_ETDRS_grid_indices(center, center_radius, inner_radius)
 
-    center_mask = np.zeros_like(faz, dtype=np.bool8)
+    center_mask = np.zeros_like(faz, dtype=np.bool_)
     center_mask[center_indices[0], center_indices[1]] = True
 
-    q1_mask = np.zeros_like(faz, dtype=np.bool8)
+    q1_mask = np.zeros_like(faz, dtype=np.bool_)
     q1_mask[q1_indices[0], q1_indices[1]] = True
 
-    q2_mask = np.zeros_like(faz, dtype=np.bool8)
+    q2_mask = np.zeros_like(faz, dtype=np.bool_)
     q2_mask[q2_indices[0], q2_indices[1]] = True
 
-    q3_mask = np.zeros_like(faz, dtype=np.bool8)
+    q3_mask = np.zeros_like(faz, dtype=np.bool_)
     q3_mask[q3_indices[0], q3_indices[1]] = True
 
-    q4_mask = np.zeros_like(faz, dtype=np.bool8)
+    q4_mask = np.zeros_like(faz, dtype=np.bool_)
     q4_mask[q4_indices[0], q4_indices[1]] = True
 
     return center_mask, q1_mask, q2_mask, q3_mask, q4_mask

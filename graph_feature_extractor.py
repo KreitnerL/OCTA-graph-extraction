@@ -124,21 +124,21 @@ if __name__ == "__main__":
         faz_seg_files = natsorted(glob.glob(f'{args.faz_dir}/**/*.*', recursive=True))
         assert len(faz_seg_files)>0, f"Found no matching FAZ files at path {args.faz_dir}! Note, this script currently only supports .png, .jpg, and .bmp faz segmentation files."
 
-        faz_code_name_map = {get_code_name(path): path for path in faz_seg_files if ("DVC" in path) or ("DCP" in path)}
+        faz_code_name_map = {get_code_name(path): path for path in faz_seg_files if ("dvc" in path.lower()) or ("dcp" in path.lower())}
 
 
         def task(ves_seg_path: str):
             image_name = os.path.basename(ves_seg_path)
             extension = ".nii.gz" if ves_seg_path.endswith(".nii.gz") else "."+ves_seg_path.split(".")[-1]
             if extension == ".nii.gz":
-                faz_code_name = get_code_name(ves_seg_path).replace("SVC", "DVC")
+                faz_code_name = get_code_name(ves_seg_path).replace("SVC", "DVC").replace("svc", "dvc")
                 if faz_code_name not in faz_code_name_map:
                     print(f"Skipping analysis for image {ves_seg_path}. No FAZ found.")
                     return
                 img_nii: nib.Nifti1Image = nib.load(ves_seg_path)
                 ves_seg_3d = img_nii.get_fdata()
             else:
-                faz_code_name = get_code_name(ves_seg_path).replace("SVC", "DVC")
+                faz_code_name = get_code_name(ves_seg_path).replace("SVC", "DVC").replace("svc", "dvc")
                 if faz_code_name not in faz_code_name_map:
                     print(f"Skipping analysis for image {ves_seg_path}. No FAZ found.")
                     return

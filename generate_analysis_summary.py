@@ -12,13 +12,13 @@ from math import pi
 from utils.ETDRS_grid import get_ETDRS_grid_masks
 
 def remove_plexus_code(name: str):
-    return name.replace("_DCP", "").replace("_DVC", "").replace("_SCP", "").replace("_SVC", "")
+    return name.replace("_DCP", "").replace("_dcp", "").replace("_DVC", "").replace("_dvc", "").replace("_SCP", "").replace("_scp", "").replace("_SVC", "").replace("_svc", "")
 
 def remove_eye_code(name: str):
      return name.replace("_OS", "").replace("_OD", "")
 
 def remove_extentions(basename: str):
-    return basename.removesuffix(".png").removesuffix("_edges.csv").removesuffix("_full")
+    return basename.replace(" .", ".").removesuffix(".png").removesuffix("_edges.csv").removesuffix("_full")
 
 def code_name(path: str):
     return remove_plexus_code(remove_extentions(os.path.basename(path))).removeprefix("faz_").removeprefix("model_").removeprefix("model_").replace(" OCTA", "").replace(" ", "_").replace("__", "_")
@@ -104,7 +104,7 @@ if __name__ == "__main__":
             dd["Image_ID"] = remove_eye_code(remove_plexus_code(image_ID))
             dd["Group"] = remove_eye_code(remove_plexus_code(group))
             dd["Eye"] = "OD" if "OD" in image_ID else "OS"
-            dd["Layer"] = "SVC" if "SVC" in data_file else "DVC"
+            dd["Layer"] = "SVC" if "svc" in data_file.lower() else "DVC"
 
             if faz_map:
                 dd["FAZ area [mm²]"] = faz_map[code_name(data_file).removesuffix(f"_{area}")]
@@ -124,16 +124,18 @@ if __name__ == "__main__":
             dd = d[-1]
 
         for i in range(len(THRESHOLDS)-1):
-            condition=df.shape[0]*[True]
+            condition=np.array(df.shape[0]*[True])
             lower, upper = THRESHOLDS[i],THRESHOLDS[i+1]
             title = f"{area} Density ("
             if lower is not None:
                 title += f"{lower}µm < "
-                condition &= df.avgRadiusAvg * SCALING_FACTOR / args.radius_correction_factor > lower
+                if condition.size>0:
+                    condition &= np.array(df.avgRadiusAvg) * SCALING_FACTOR / args.radius_correction_factor > lower
             title += "radius"
             if upper is not None:
                 title += f" < {upper}µm"
-                condition &= df.avgRadiusAvg * SCALING_FACTOR / args.radius_correction_factor < upper
+                if condition.size>0:
+                    condition &= np.array(df.avgRadiusAvg) * SCALING_FACTOR / args.radius_correction_factor < upper
             title += ") [%]"
             if df[condition].shape[0]>0:
                 if args.from_3d:
