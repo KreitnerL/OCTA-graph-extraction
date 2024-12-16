@@ -99,6 +99,8 @@ if __name__ == "__main__":
                     i = future_dict[future]
                     pbar.update(1)
     else:
+        if data_files[0].endswith(".nii.gz"):
+            print("Warning: 3D volumes are not recommended for FAZ segmentation! For optimal results use 2D segmentations instead!")
         for path in tqdm(data_files, desc="Segmenting FAZ..."):
             task(path)
 
