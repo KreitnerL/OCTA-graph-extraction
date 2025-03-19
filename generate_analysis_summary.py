@@ -33,7 +33,7 @@ if __name__ == "__main__":
     parser.add_argument('--output_dir', type=str, help="Absolute path to the output folder. If none is given, save in source folder.")
     parser.add_argument('--faz_files', type=str, help="Absolute path to the faz segmentation files. Required for etdrs analysis.")
 
-    parser.add_argument('--radius_thresholds', type=str, default=None, help="Comma separated list of thresholds for vessel stratification [µm].")
+    parser.add_argument('--radius_thresholds', type=str, default=None, help="Comma separated list of thresholds for vessel stratification [um].")
     parser.add_argument('--from_3d', action="store_true", help="Set this flag if your vessel segmentation was given in 3D")
 
     parser.add_argument('--mm', type=float, default=3.0, help="Height of the segmentation volume in mm. Default is 3 mm")
@@ -55,7 +55,7 @@ if __name__ == "__main__":
         for faz_file in tqdm(faz_files):
             faz = np.array(Image.open(faz_file))
             image_area = faz.shape[0]*faz.shape[1]
-            faz_area = (faz/255).sum()/image_area * args.mm
+            faz_area = (faz/255).sum()/image_area * args.mm**2
 
             faz_map[code_name(faz_file)] = faz_area
 
@@ -107,17 +107,17 @@ if __name__ == "__main__":
             dd["Layer"] = "SVC" if "svc" in data_file.lower() else "DVC"
 
             if faz_map:
-                dd["FAZ area [mm²]"] = faz_map[code_name(data_file).removesuffix(f"_{area}")]
+                dd["FAZ area [mm2]"] = faz_map.get(code_name(data_file).removesuffix(f"_{area}") , nan)
             
             for a in AREA_FACTOR_MAP.keys():
                 for i in range(len(THRESHOLDS)-1):
                     lower, upper = THRESHOLDS[i],THRESHOLDS[i+1]
                     title = f"{a} Density ("
                     if lower is not None:
-                         title += f"{lower}µm < "
+                         title += f"{lower}um < "
                     title += "radius"
                     if upper is not None:
-                        title += f" < {upper}µm"
+                        title += f" < {upper}um"
                     title += ") [%]"
                     dd[title] = nan
         else:
@@ -128,12 +128,12 @@ if __name__ == "__main__":
             lower, upper = THRESHOLDS[i],THRESHOLDS[i+1]
             title = f"{area} Density ("
             if lower is not None:
-                title += f"{lower}µm < "
+                title += f"{lower}um < "
                 if condition.size>0:
                     condition &= np.array(df.avgRadiusAvg) * SCALING_FACTOR / args.radius_correction_factor > lower
             title += "radius"
             if upper is not None:
-                title += f" < {upper}µm"
+                title += f" < {upper}um"
                 if condition.size>0:
                     condition &= np.array(df.avgRadiusAvg) * SCALING_FACTOR / args.radius_correction_factor < upper
             title += ") [%]"

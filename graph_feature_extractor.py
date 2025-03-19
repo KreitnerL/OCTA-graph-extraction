@@ -130,18 +130,14 @@ if __name__ == "__main__":
         def task(ves_seg_path: str):
             image_name = os.path.basename(ves_seg_path)
             extension = ".nii.gz" if ves_seg_path.endswith(".nii.gz") else "."+ves_seg_path.split(".")[-1]
+            faz_code_name = get_code_name(ves_seg_path).replace("SVC", "DVC").replace("svc", "dvc")
+            if faz_code_name not in faz_code_name_map:
+                print(f"Skipping analysis for image {ves_seg_path}. No FAZ found.")
+                return
             if extension == ".nii.gz":
-                faz_code_name = get_code_name(ves_seg_path).replace("SVC", "DVC").replace("svc", "dvc")
-                if faz_code_name not in faz_code_name_map:
-                    print(f"Skipping analysis for image {ves_seg_path}. No FAZ found.")
-                    return
                 img_nii: nib.Nifti1Image = nib.load(ves_seg_path)
                 ves_seg_3d = img_nii.get_fdata()
             else:
-                faz_code_name = get_code_name(ves_seg_path).replace("SVC", "DVC").replace("svc", "dvc")
-                if faz_code_name not in faz_code_name_map:
-                    print(f"Skipping analysis for image {ves_seg_path}. No FAZ found.")
-                    return
                 ves_seg = np.array(Image.open(ves_seg_path))
                 ves_seg_3d = np.stack([np.zeros_like(ves_seg), ves_seg, np.zeros_like(ves_seg)], axis=-1)
 
