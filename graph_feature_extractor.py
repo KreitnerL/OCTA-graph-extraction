@@ -15,6 +15,7 @@ import uuid
 from multiprocessing import cpu_count
 import concurrent.futures
 import pandas as pd
+import time
 
 project_folder = str(pathlib.Path(__file__).parent.resolve())
 
@@ -78,6 +79,8 @@ def extract_graph_features(img_nii: nib.Nifti1Image,
     df_edges.to_csv(edges_file, sep=";")
 
     if graph_image:
+        # wait for 3 seconds to ensure the files are written
+        time.sleep(3)
         graph_img = node_edges_to_graph(nodes_file, edges_file, img_nii.shape[:2], colorize=colorize, radius_scale_factor=1 if ves_seg_3d else 2, thresholds=thresholds)
         Image.fromarray(graph_img.astype(np.uint8)).save(os.path.join(output_dir, f'{image_name}_graph.png'))
 

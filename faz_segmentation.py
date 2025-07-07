@@ -5,7 +5,6 @@ from monai.transforms import KeepLargestConnectedComponent
 from natsort import natsorted
 import glob
 from tqdm import tqdm
-import numpy as np
 import os
 from multiprocessing import cpu_count
 import concurrent.futures

@@ -70,7 +70,7 @@ def rasterize_forest(forest: dict,
             colors=np.minimum(colors/0.03,1)
         else:
             c_new = np.zeros_like(colors)
-            intensities = np.linspace(0.1,1, num=len(thresholds+1))
+            intensities = np.linspace(0.1,1, num=len(thresholds)+1)
             thresholds = [0,*thresholds,math.inf]
             for i in range(1,len(thresholds)):
                 c_new[(thresholds[i-1]<colors) & (colors<=thresholds[i])]=intensities[i-1]
