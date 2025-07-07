@@ -6,3 +6,5 @@ voreen/tmpdir
 **/__pycache__
 **/debug*
 wandb/
+
+uv.lock
