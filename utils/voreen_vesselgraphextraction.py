@@ -54,6 +54,7 @@ def extract_vessel_graph(volume_path: str,
     # Write the file out again
     with open(os.path.join(temp_directory,voreen_workspace), 'w') as file:
         file.write(filedata)
+        file.flush()
 
     workspace_file = os.path.join(os.path.join(os. getcwd(),temp_directory),voreen_workspace)
 
@@ -67,6 +68,10 @@ def extract_vessel_graph(volume_path: str,
     )
     if generate_graph_file:
         os.rename(graph_path, graph_path.replace(".vvg", ".json"))
+    
+    # Make sure all files are written and flushed to disk
+    os.sync()
+
     with h5py.File(out_path, "r") as f:
         # Print all root level object names (aka keys) 
         # these can be group or dataset names 

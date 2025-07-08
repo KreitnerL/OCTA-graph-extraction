@@ -1,7 +1,6 @@
 import numpy as np
 from PIL import Image
 from skimage.morphology import skeletonize
-from monai.transforms import KeepLargestConnectedComponent
 from natsort import natsorted
 import glob
 from tqdm import tqdm
@@ -11,6 +10,27 @@ import concurrent.futures
 import cv2
 from math import inf
 import nibabel as nib
+from scipy import ndimage
+
+def keep_largest_connected_component(image: np.ndarray) -> np.ndarray:
+    """
+    Keeps only the largest 4-connected component in a binary 2D image.
+    Parameters:
+        image (np.ndarray): 2D binary image. Non-zero pixels are treated as foreground.
+    Returns:
+        image (np.ndarray): Binary image of same shape and dtype with only the largest connected component.
+    """
+    if image.ndim != 2:
+        raise ValueError("Input must be a 2D array.")
+    
+    labeled = ndimage.label(image, connectivity=1)  # 4-connectivity
+    if labeled.max() == 0:
+        return np.zeros_like(image, dtype=image.dtype)
+
+    counts = np.bincount(labeled.ravel())[1:]  # exclude background (label 0)
+    largest_label = np.argmax(counts) + 1
+    output = (labeled == largest_label).astype(image.dtype)
+    return output
 
 def get_faz_mask_robust(img_orig: np.ndarray) -> np.ndarray:
     for border in [600,500,400,300,200, 100]:
@@ -35,7 +55,7 @@ def get_faz_mask(img_orig: np.ndarray, BORDER=200) -> np.ndarray:
     img_skel = skeletonize(img_fuzzy,method = 'zhang')
 
     img_inverted = (1-img/255).astype(np.float32)[np.newaxis,:,:]
-    faz = KeepLargestConnectedComponent(connectivity=1)(img_inverted)[0].numpy()
+    faz = keep_largest_connected_component(img_inverted)
 
     faz_larger_down = cv2.resize(faz, dsize=out_shape, interpolation=cv2.INTER_AREA)
     faz_larger: np.ndarray = cv2.resize(faz_larger_down, dsize=faz.shape, interpolation=cv2.INTER_LINEAR)
@@ -46,7 +66,7 @@ def get_faz_mask(img_orig: np.ndarray, BORDER=200) -> np.ndarray:
     img_merged[faz_larger<1] = 1
 
     img_inverted = (1-img_merged).astype(np.float32)[np.newaxis,:,:]
-    faz_final = KeepLargestConnectedComponent(connectivity=1)(img_inverted)[0].numpy()
+    faz_final = keep_largest_connected_component(img_inverted)
     return faz_final
 
 

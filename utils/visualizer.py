@@ -3,11 +3,9 @@ import csv
 
 from random import random
 
-import numpy as np
 
 import math
 from PIL import Image
-from tqdm import tqdm
 from matplotlib import pyplot as plt, collections, cm
 
 def rasterize_forest(forest: dict,
@@ -22,10 +20,8 @@ def rasterize_forest(forest: dict,
     # initialize canvas with defined image dimensions
     if not radius_list:
         radius_list=[]
-    size_x = 1
     image_dim = tuple([math.ceil(image_scale_factor * d) for d in [76,76]])
     no_pixels_x, no_pixels_y = image_dim
-    voxel_size_x = size_x / (no_pixels_x)
     dpi = 100
     x_inch = no_pixels_x / dpi
     y_inch = no_pixels_y / dpi

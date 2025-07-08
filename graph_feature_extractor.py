@@ -15,7 +15,6 @@ import uuid
 from multiprocessing import cpu_count
 import concurrent.futures
 import pandas as pd
-import time
 
 project_folder = str(pathlib.Path(__file__).parent.resolve())
 
@@ -41,8 +40,8 @@ def _sanity_filter(df_rows: pd.DataFrame, df_nodes: pd.DataFrame, z_dim, lower_z
 def extract_graph_features(img_nii: nib.Nifti1Image,
                            image_name: str,
                            output_dir: str,
+                           voreen_tool_path: str,
                            bulge_size=5,
-                           voreen_tool_path="/home/linus/Software/voreen-src-unix-nightly/bin",
                            graph_image=True,
                            generate_graph_file=False,
                            colorize=False,
@@ -77,10 +76,10 @@ def extract_graph_features(img_nii: nib.Nifti1Image,
     df_edges, df_nodes = _sanity_filter(df_edges,df_nodes, z_dim=img_nii.shape[2])
     df_nodes.to_csv(nodes_file, sep=";")
     df_edges.to_csv(edges_file, sep=";")
+    # flush the files to disk
+    os.sync()
 
     if graph_image:
-        # wait for 3 seconds to ensure the files are written
-        time.sleep(3)
         graph_img = node_edges_to_graph(nodes_file, edges_file, img_nii.shape[:2], colorize=colorize, radius_scale_factor=1 if ves_seg_3d else 2, thresholds=thresholds)
         Image.fromarray(graph_img.astype(np.uint8)).save(os.path.join(output_dir, f'{image_name}_graph.png'))
 
@@ -174,8 +173,9 @@ if __name__ == "__main__":
                 # Compute graph
                 extract_graph_features(ves_seg_masked_nii,
                                        image_name.replace(extension, "_"+suffix),
-                                       output_dir, args.bulge_size,
+                                       output_dir,
                                        args.voreen_tool_path,
+                                       args.bulge_size,
                                        args.graph_image,
                                        args.generate_graph_file,
                                        args.colorize_graph,
@@ -201,8 +201,8 @@ if __name__ == "__main__":
             extract_graph_features(img_nii,
                                    image_name + "_full",
                                    output_dir,
-                                   args.bulge_size,
                                    args.voreen_tool_path,
+                                   args.bulge_size,
                                    args.graph_image,
                                    args.generate_graph_file,
                                    args.colorize_graph,
