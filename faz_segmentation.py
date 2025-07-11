@@ -23,7 +23,7 @@ def keep_largest_connected_component(image: np.ndarray) -> np.ndarray:
     if image.ndim != 2:
         raise ValueError("Input must be a 2D array.")
     
-    labeled = ndimage.label(image, connectivity=1)  # 4-connectivity
+    labeled, num_features = ndimage.label(image)  # 4-connectivity
     if labeled.max() == 0:
         return np.zeros_like(image, dtype=image.dtype)
 
@@ -54,7 +54,7 @@ def get_faz_mask(img_orig: np.ndarray, BORDER=200) -> np.ndarray:
 
     img_skel = skeletonize(img_fuzzy,method = 'zhang')
 
-    img_inverted = (1-img/255).astype(np.float32)[np.newaxis,:,:]
+    img_inverted = (1-img/255).astype(np.float32)[:,:]
     faz = keep_largest_connected_component(img_inverted)
 
     faz_larger_down = cv2.resize(faz, dsize=out_shape, interpolation=cv2.INTER_AREA)
@@ -65,7 +65,7 @@ def get_faz_mask(img_orig: np.ndarray, BORDER=200) -> np.ndarray:
     img_merged[faz_larger==1]=np.maximum(img_merged[faz_larger==1],img_skel[faz_larger==1])
     img_merged[faz_larger<1] = 1
 
-    img_inverted = (1-img_merged).astype(np.float32)[np.newaxis,:,:]
+    img_inverted = (1-img_merged).astype(np.float32)[:,:]
     faz_final = keep_largest_connected_component(img_inverted)
     return faz_final
 

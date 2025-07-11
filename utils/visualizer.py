@@ -188,7 +188,10 @@ def generate_image_from_graph_json(
     colors = [colors[i] for i in indices]
     radii = [radii[i] for i in indices]
 
-    figure = plt.figure(figsize=(8,8))
+    dpi=100
+    x_inch = dim / dpi
+    y_inch = dim / dpi
+    figure = plt.figure(figsize=(x_inch,y_inch))
     figure.patch.set_facecolor('black')
     ax = plt.axes([0., 0., 1., 1.], frameon=False, xticks=[], yticks=[])
     ax.add_collection(collections.PatchCollection(circles, facecolors=colors, antialiaseds=True))
