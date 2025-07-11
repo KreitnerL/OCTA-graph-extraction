@@ -160,12 +160,7 @@
                         <Property mapKey="neighbourhoodMode" name="neighbourhoodMode" value="n6" />
                         <Property mapKey="outputVolumeDeflateLevel" name="outputVolumeDeflateLevel" value="1" />
                         <Property mapKey="outputVolumeFilePath" name="outputVolumeFilePath" watchMode="3" fileWatchEnabled="false" useGeneratedPath="true">
-                            <paths noPathSet="false">
-                                <paths>
-                                    <item value="../Dokumente/Voreen/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/3466cda7-8b6d-422c-92e4-d22bbe2d4a4d.h5" />
-                                    <item value="../../Dokumente/Voreen/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/3466cda7-8b6d-422c-92e4-d22bbe2d4a4d.h5" />
-                                    <item value="C:/Users/Linus/OneDrive/Dokumente/Voreen/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/3466cda7-8b6d-422c-92e4-d22bbe2d4a4d.h5" />
-                                </paths>
+                            <paths noPathSet="true">
                             </paths>
                         </Property>
                         <Property mapKey="progressDisplay" name="progressDisplay" guiName="Progress (Cavity Removal)" />
@@ -214,12 +209,7 @@
                         <Property mapKey="neighbourhoodMode" name="neighbourhoodMode" value="n26" />
                         <Property mapKey="outputVolumeDeflateLevel" name="outputVolumeDeflateLevel" value="1" />
                         <Property mapKey="outputVolumeFilePath" name="outputVolumeFilePath" watchMode="3" fileWatchEnabled="false" useGeneratedPath="true">
-                            <paths noPathSet="false">
-                                <paths>
-                                    <item value="../Dokumente/Voreen/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/b06ce446-c27e-47df-a4e3-d10b64552c26.h5" />
-                                    <item value="../../Dokumente/Voreen/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/b06ce446-c27e-47df-a4e3-d10b64552c26.h5" />
-                                    <item value="C:/Users/Linus/OneDrive/Dokumente/Voreen/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/b06ce446-c27e-47df-a4e3-d10b64552c26.h5" />
-                                </paths>
+                            <paths noPathSet="true">
                             </paths>
                         </Property>
                         <Property mapKey="progressDisplay" name="progressDisplay" guiName="Progress (Object Removal)" />
@@ -317,12 +307,7 @@
                         <Property mapKey="manualUpdateButton_" name="manualUpdateButton_" />
                         <Property mapKey="outputVolumeDeflateLevel" name="outputVolumeDeflateLevel" value="1" />
                         <Property mapKey="outputVolumeFilePath" name="outputVolumeFilePath" watchMode="3" fileWatchEnabled="false" useGeneratedPath="true">
-                            <paths noPathSet="false">
-                                <paths>
-                                    <item value="../Dokumente/Voreen/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/e149e0b1-47fa-4b20-b36e-2d51ee1e85c3.h5" />
-                                    <item value="../../Dokumente/Voreen/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/e149e0b1-47fa-4b20-b36e-2d51ee1e85c3.h5" />
-                                    <item value="C:/Users/Linus/OneDrive/Dokumente/Voreen/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/e149e0b1-47fa-4b20-b36e-2d51ee1e85c3.h5" />
-                                </paths>
+                            <paths noPathSet="true">
                             </paths>
                         </Property>
                         <Property mapKey="progressDisplay" name="progressDisplay" guiName="Progress (Surface Smoothing)" />
@@ -493,12 +478,7 @@
                         <Property mapKey="manualUpdateButton_" name="manualUpdateButton_" guiName="Start Preprocessing" />
                         <Property mapKey="outputVolumeDeflateLevel" name="outputVolumeDeflateLevel" value="1" />
                         <Property mapKey="outputVolumeFilePath" name="outputVolumeFilePath" watchMode="3" fileWatchEnabled="false" useGeneratedPath="true">
-                            <paths noPathSet="false">
-                                <paths>
-                                    <item value="../Dokumente/Voreen/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/e68c5170-03c3-4a20-abd0-ad610c43d035.h5" />
-                                    <item value="../../Dokumente/Voreen/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/e68c5170-03c3-4a20-abd0-ad610c43d035.h5" />
-                                    <item value="C:/Users/Linus/OneDrive/Dokumente/Voreen/tmp/6919ceca-add4-40e0-ab4b-a1f58809f080/e68c5170-03c3-4a20-abd0-ad610c43d035.h5" />
-                                </paths>
+                            <paths noPathSet="true">
                             </paths>
                         </Property>
                         <Property mapKey="progressDisplay" name="progressDisplay" guiName="Progress (Thresholding)" />

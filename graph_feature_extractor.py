@@ -15,41 +15,35 @@ import uuid
 from multiprocessing import cpu_count
 import concurrent.futures
 import pandas as pd
+from utils.convert_2d_to_3d import convert_2d_to_3d
+import docker
 
 project_folder = str(pathlib.Path(__file__).parent.resolve())
 
-# You may want to customize these
 ####################################################################################################
-workspace_file = project_folder+"/voreen/feature-vesselgraphextraction_customized_command_line.vws"
-
-# Any empty or non-existing folder with write access
-workdir = project_folder+"/voreen/workdir/"
-TMP_DIR = project_folder+"/voreen/tmpdir"
-cachedir = project_folder+"/voreen/cachedir/"
+HOST_WORKSPACE_FILE_PATH = project_folder+"/voreen/feature-vesselgraphextraction_customized_command_line.vws"
+DOCKER_VOREEN_BIN = "/home/software/voreen-voreen-5.3.0/voreen/bin/"
 ####################################################################################################
 
 def _sanity_filter(df_rows: pd.DataFrame, df_nodes: pd.DataFrame, z_dim, lower_z=0.3, upper_z=0.7) -> tuple[pd.DataFrame, pd.DataFrame]:
-    df_nodes_filtered = df_nodes[(df_nodes.pos_z / z_dim > lower_z) & (df_nodes.pos_z / z_dim < upper_z)]
     df_rows_filtered = df_rows[
         (df_rows.volume>0) & (df_rows.distance>0) & (df_rows.curveness>0) & (df_rows.avgRadiusAvg>0) & (df_rows.avgRadiusStd)
     ]
-    df_rows_filtered = df_rows_filtered.merge(df_nodes_filtered, left_on="node1id", right_on="id", how="inner")
-    df_rows_filtered = df_rows_filtered.merge(df_nodes_filtered, left_on="node2id", right_on="id", how="inner")
-    return df_rows_filtered, df_nodes_filtered
+    return df_rows_filtered, df_nodes
 
 def extract_graph_features(img_nii: nib.Nifti1Image,
                            image_name: str,
                            output_dir: str,
-                           voreen_tool_path: str,
+                           tmp_dir: str,
+                           container_name: str,
                            bulge_size=5,
                            graph_image=True,
-                           generate_graph_file=False,
+                           generate_graph_file=True,
                            colorize=False,
                            verbose=False,
-                           ves_seg_3d=True,
                            thresholds: list[float]=None):
     while True:
-        tempdir = f"{TMP_DIR}/{str(uuid.uuid4())}/"
+        tempdir = f"{tmp_dir}/{str(uuid.uuid4())}/"
         if not os.path.isdir(tempdir):
             break
     os.makedirs(tempdir)
@@ -57,12 +51,11 @@ def extract_graph_features(img_nii: nib.Nifti1Image,
     nib.save(img_nii, nii_path)
 
     _ = extract_vessel_graph(nii_path, 
-        output_dir+"/",
+        output_dir,
         tempdir,
-        cachedir,
         bulge_size,
-        workspace_file,
-        voreen_tool_path,
+        HOST_WORKSPACE_FILE_PATH,
+        container_name,
         name=image_name,
         generate_graph_file=generate_graph_file,
         verbose=verbose
@@ -74,30 +67,35 @@ def extract_graph_features(img_nii: nib.Nifti1Image,
     df_edges = pd.read_csv(edges_file, sep=";", index_col=0)
     df_nodes = pd.read_csv(nodes_file, sep=";", index_col=0)
     df_edges, df_nodes = _sanity_filter(df_edges,df_nodes, z_dim=img_nii.shape[2])
-    df_nodes.to_csv(nodes_file, sep=";")
     df_edges.to_csv(edges_file, sep=";")
     # flush the files to disk
     os.sync()
 
     if graph_image:
-        graph_img = node_edges_to_graph(nodes_file, edges_file, img_nii.shape[:2], colorize=colorize, radius_scale_factor=1 if ves_seg_3d else 2, thresholds=thresholds)
+        graph_img = node_edges_to_graph(nodes_file, edges_file, img_nii.shape[:2], colorize=colorize, thresholds=thresholds)
         Image.fromarray(graph_img.astype(np.uint8)).save(os.path.join(output_dir, f'{image_name}_graph.png'))
 
 if __name__ == "__main__":
     # Parse input arguments
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('--image_files', help="Absolute path to the segmentation maps", type=str, required=True)
-    parser.add_argument('--voreen_tool_path', help="Absolute path to the bin folder of your voreen installation", type=str, required=True)
+    parser.add_argument('--tmp_dir', help="Absolute path to the temporary directory where voreen will store its temporary files", type=str, default="/tmp/voreen")
+
     parser.add_argument('--output_dir', help="Absolute path to the folder where the graph and feature files should be stored."
                         +"If no folder is provided, the files will be stored in the same directory as the source images.", type=str, default=None)
+    parser.add_argument('--voreen_image_name', help="Absolute path to the bin folder of your voreen installation", type=str, default="voreen")
+    
+    parser.add_argument('--voreen_workspace', help="Absolute path to the voreen workspace file", type=str, default=HOST_WORKSPACE_FILE_PATH)
     parser.add_argument('--bulge_size', help="Numeric value of the bulge_size parameter to control the sensitivity", type=float, default=3)
     parser.add_argument('--graph_image', help="Generate an image of the extracted graph", action="store_true", default=True)
     parser.add_argument('--no_graph_image', help="Do not generate an image of the extracted graph", action="store_false", dest="colorize_graph")
     parser.add_argument('--colorize_graph', help="Generate colored radius graph", action="store_true", default=True)
     parser.add_argument('--no_colorize_graph', help="Generate colored radius graph", action="store_false", dest="colorize_graph")
     parser.add_argument('--thresholds', help="Radius thresholds for colorization", type=str, default=None)
-    parser.add_argument('--generate_graph_file', help="Generate the graph JSON file", action="store_true", default=False)
+    parser.add_argument('--generate_graph_file', help="Generate the graph JSON file", action="store_true", default=True)
+    parser.add_argument('--no_generate_graph_file', help="Do not generate the graph JSON file", action="store_false", dest="generate_graph_file")
     parser.add_argument('--verbose', action="store_true", help="Print log information from voreen")
+    parser.add_argument('--z_dim', help="Z dimension of the 3D segmentation mask. Only needed for 2D segmentation masks.", type=int, default=64)
 
     parser.add_argument('--ETDRS', action="store_true", help="Analyse vessels in ETDRS grid")
     parser.add_argument('--faz_dir', help="Absolute path to the folder containing all the faz segmentation maps. Only needed for ETDRS analysis", type=str, default=None)
@@ -105,16 +103,43 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     # Clean tmpdir
-    if os.path.exists(TMP_DIR):
-        os.system(f"rm -rf '{TMP_DIR}'")
+    if os.path.exists(args.tmp_dir):
+        os.system(f"rm -rf '{os.path.join(args.tmp_dir, "*")}'")
 
     ves_seg_files = [p for p in natsorted(glob.glob(args.image_files, recursive=True))]
     assert len(ves_seg_files)>0, f"Found no matching vessel segmentation files for path {args.image_files}!"
-    if any([p.split(".")[-1] in ["png", "jpg", "bmp"] for p in ves_seg_files]):
-        print("Warning: Using voreen on 2D segmentation masks leads to an underestimation of the vessel radii. Consider using our 3D reconstruction tool for better performance.")
     source_dir = os.path.dirname(os.path.commonprefix(ves_seg_files))
 
     THRESHOLDS = [float(t) for t in args.thresholds.split(",")] if args.thresholds is not None else None
+
+    container_name = None
+    # Start docker container if not running in docker
+    if not os.path.exists("/.dockerenv"):
+        # Check if container of this image is running
+        client = docker.from_env()
+        for container in client.containers.list(filters={"status": "running"}):
+            if container.image.tags and any(args.voreen_image_name in tag for tag in container.image.tags):
+                container_name = container.name
+                break
+        if container_name is None:
+            print(f"No running container for image {args.voreen_image_name} not found. Starting a new container...")
+            container = client.containers.run(
+                image=args.voreen_image_name,
+                detach=True,
+                tty=True,
+                stdin_open=True,
+                command="tail -f /dev/null",
+                user="root",
+                volumes={
+                    args.tmp_dir: {'bind': "/var/tmp", 'mode': 'rw'},
+                    source_dir: {'bind': "/var/src", 'mode': 'ro'},
+                    args.output_dir: {'bind': "/var/results", 'mode': 'rw'}
+                },
+            )
+            container_name = container.name
+            container.exec_run(user="root", cmd=f"chown {os.getuid()}:{os.getgid()} /var/tmp && chown {os.getuid()}:{os.getgid()} /var/results && chmod 777 -R {DOCKER_VOREEN_BIN}/../data")
+    else:
+        print("Running in Docker container. Using voreen from the container.")
 
     if args.ETDRS:
         assert bool(args.faz_dir)
@@ -140,8 +165,8 @@ if __name__ == "__main__":
                 img_nii: nib.Nifti1Image = nib.load(ves_seg_path)
                 ves_seg_3d = img_nii.get_fdata()
             else:
-                ves_seg = np.array(Image.open(ves_seg_path))
-                ves_seg_3d = np.stack([np.zeros_like(ves_seg), ves_seg, np.zeros_like(ves_seg)], axis=-1)
+                ves_seg = np.array(Image.open(ves_seg_path), np.uint8)
+                ves_seg_3d = convert_2d_to_3d(ves_seg, z_dim=args.z_dim)
 
             faz_seg = np.array(Image.open(faz_code_name_map[faz_code_name]))
             center = ndimage.center_of_mass(faz_seg)
@@ -174,13 +199,13 @@ if __name__ == "__main__":
                 extract_graph_features(ves_seg_masked_nii,
                                        image_name.replace(extension, "_"+suffix),
                                        output_dir,
-                                       args.voreen_tool_path,
+                                       args.tmp_dir,
+                                       container_name,
                                        args.bulge_size,
                                        args.graph_image,
                                        args.generate_graph_file,
                                        args.colorize_graph,
                                        verbose=bool(args.verbose),
-                                       ves_seg_3d=extension==".nii.gz",
                                        thresholds=THRESHOLDS)
     else:
         def task(ves_seg_path: str):
@@ -194,21 +219,26 @@ if __name__ == "__main__":
             if extension == ".nii.gz":
                 img_nii = nib.load(ves_seg_path)
             else:
-                a = np.array(Image.open(ves_seg_path))
-                a = np.stack([np.zeros_like(a), a, np.zeros_like(a)], axis=-1)
-                img_nii = nib.Nifti1Image(a.astype(np.uint8), np.eye(4))
+                ves_seg = np.array(Image.open(ves_seg_path), np.uint8)
+                ves_seg_3d = convert_2d_to_3d(ves_seg, z_dim=args.z_dim)
+                header = nib.Nifti1Header()
+                header.set_xyzt_units(xyz="mm", t="sec")
+                header.set_data_shape(ves_seg_3d.shape)
+                img_nii = nib.Nifti1Image(ves_seg_3d, np.eye(4), header=header)
             image_name = os.path.basename(ves_seg_path).removesuffix(extension)
-            extract_graph_features(img_nii,
-                                   image_name + "_full",
-                                   output_dir,
-                                   args.voreen_tool_path,
-                                   args.bulge_size,
-                                   args.graph_image,
-                                   args.generate_graph_file,
-                                   args.colorize_graph,
-                                   verbose=bool(args.verbose),
-                                   ves_seg_3d=extension==".nii.gz",
-                                   thresholds=THRESHOLDS)
+            extract_graph_features(
+                img_nii,
+                image_name + "_full",
+                output_dir,
+                args.tmp_dir,
+                container_name,
+                args.bulge_size,
+                args.graph_image,
+                args.generate_graph_file,
+                args.colorize_graph,
+                verbose=bool(args.verbose),
+                thresholds=THRESHOLDS
+            )
 
     if args.threads == -1:
         # If no argument is provided, use all available threads but one
@@ -229,3 +259,15 @@ if __name__ == "__main__":
         # Single processing
         for ves_seg_path in tqdm(ves_seg_files, desc="Extracting graph features..."):
             task(ves_seg_path)
+    if container_name is not None:
+        client = docker.from_env()
+        container = client.containers.get(container_name)
+        container.stop()
+        container.remove()
+        print(f"Container '{container_name}' stopped and removed.")
+        if os.path.exists(args.tmp_dir):
+            result = os.system(f"rm -rf '{os.path.join(args.tmp_dir, '*')}'")
+            if result == 0:
+                print(f"Temporary directory {args.tmp_dir} cleaned up successfully.")
+            else:
+                print(f"Failed to clean up temporary directory {args.tmp_dir}.")
