@@ -2,6 +2,12 @@ import os
 import h5py
 import numpy as np
 import docker
+import nibabel as nib
+import pandas as pd
+import uuid
+from typing import Literal
+from utils.visualizer import generate_image_from_graph_json
+from PIL import Image
 
 DOCKER_TMP_DIR = '/var/tmp'
 DOCKER_CACHE_DIR = '/var/cache'
@@ -9,15 +15,58 @@ DOCKER_WORK_DIR = '/var/results'
 DOCKER_VOREEN_TOOL_PATH = '/home/software/voreen-voreen-5.3.0/voreen/bin/'
 # DOCKER_VOREEN_TOOL_PATH = '/home/software/voreen-src-unix-nightly/bin'
 
-def extract_vessel_graph(volume_path: str,
-                         outdir: str,
-                         tempdir: str,
-                         bulge_size: float,
-                         workspace_file: str,
-                         container_name: str,
-                         name='',
-                         generate_graph_file=False,
-                         verbose=False):
+def _sanity_filter(df_rows: pd.DataFrame, df_nodes: pd.DataFrame, z_dim, lower_z=0.3, upper_z=0.7) -> tuple[pd.DataFrame, pd.DataFrame]:
+    df_rows_filtered = df_rows[
+        (df_rows.volume>0) & (df_rows.distance>0) & (df_rows.curveness>0) & (df_rows.avgRadiusAvg>0) & (df_rows.avgRadiusStd)
+    ]
+    return df_rows_filtered, df_nodes
+
+def extract_vessel_graph(
+        img_nii: nib.nifti1.Nifti1Image,
+        image_name: str,
+        outdir: str,
+        tmp_dir: str,
+        bulge_size: float,
+        workspace_file: str,
+        container_name: str,
+        graph_image: bool = True,
+        colorize: Literal["continuous", "thresholds", "random", "white"] = "continuous",
+        color_thresholds: list[float] = None,
+        verbose=False
+    ):
+    """
+    Extracts a vessel graph from a NIFTI image using Voreen's vessel graph extraction tool and stores the results in the specified output directory.
+    Args:
+        img_nii (nib.nifti1.Nifti1Image): The input NIFTI image containing the OCTA data.
+        image_name (str): The name of the image file (without extension).
+        outdir (str): Directory where the output files will be saved.
+        tempdir (str): Temporary directory for intermediate files.
+        bulge_size (float): Minimum size of a bulge in the vessel graph.
+        workspace_file (str): Path to the Voreen workspace file.
+        container_name (str): Name of the Docker container to run the Voreen tool in.
+        graph_image (bool): Whether to generate a graph image from the extracted vessel graph.
+        colorize (Literal["continuous", "thresholds", "random", "white"]): Specifies how to color the edges in the graph image.
+            - "continuous": Color edges based on their radius, using a continuous color map.
+            - "thresholds": Color edges based on the given thresholds.
+            - "random": Assign a random color to each segment.
+            - "white": Use a default color (white).
+        color_thresholds (list[float]): A list of thresholds for coloring edges when `colorize` is set to "thresholds". 
+            This should be provided as a list of floats
+        verbose (bool): Whether to print verbose output.
+    Returns:
+        np.ndarray: The extracted vessel graph as a NumPy array.
+    Raises:
+        Exception: If the graph file is not found after extraction.
+    """
+    while True:
+        tempdir = f"{tmp_dir}/{str(uuid.uuid4())}/"
+        if not os.path.isdir(tempdir):
+            break
+    os.makedirs(tempdir)
+    volume_path = os.path.join(tempdir, f'{image_name}.nii')
+    nib.save(img_nii, volume_path)
+
+
     bulge_size_identifier = f'{bulge_size}'
     bulge_size_identifier = bulge_size_identifier.replace('.','_')
 
@@ -34,9 +83,9 @@ def extract_vessel_graph(volume_path: str,
 
     bulge_size_identifier = f'{bulge_size}'
     bulge_size_identifier = bulge_size_identifier.replace('.','_')
-    edge_path = f'{DOCKER_WORK_DIR}/{name}_edges.csv'
-    node_path = f'{DOCKER_WORK_DIR}/{name}_nodes.csv'
-    graph_path = f'{DOCKER_WORK_DIR}/{name}_graph.vvg'
+    edge_path = f'{DOCKER_WORK_DIR}/{image_name}_edges.csv'
+    node_path = f'{DOCKER_WORK_DIR}/{image_name}_nodes.csv'
+    graph_path = f'{DOCKER_WORK_DIR}/{image_name}_graph.vvg'
 
     voreen_workspace = 'feature-vesselgraphextraction_customized_command_line.vws'
 
@@ -50,8 +99,6 @@ def extract_vessel_graph(volume_path: str,
     filedata = filedata.replace("nodes.csv", node_path)
     filedata = filedata.replace("edges.csv", edge_path)
     filedata = filedata.replace("graph.vvg", graph_path)
-    filedata = filedata.replace('<Property mapKey="continousSave" name="continousSave" value="false" /> <Property mapKey="graphFilePath"',
-                                f'<Property mapKey="continousSave" name="continousSave" value="{str(generate_graph_file).lower()}" /> <Property mapKey="graphFilePath"')
     filedata = filedata.replace('<Property mapKey="minBulgeSize" name="minBulgeSize" value="3" />', bulge_path)
     filedata = filedata.replace("input.nii", volume_path)
     filedata = filedata.replace("output.h5", out_path)
@@ -84,22 +131,44 @@ def extract_vessel_graph(volume_path: str,
         result = container.exec_run(user=str(os.getuid()), cmd=exec_command, detach=False, stream=True)
         for line in result.output:
             print(line.decode(), end='')
-        
-    if generate_graph_file:
+        # Reset terminal formatting after container execution
+        print('\033[0m', end='', flush=True)
+    try:
         os.rename(graph_path.replace(DOCKER_WORK_DIR, outdir), graph_path.replace(DOCKER_WORK_DIR, outdir).replace(".vvg", ".json"))
-    
-    # Make sure all files are written and flushed to disk
-    os.sync()
+        # Make sure all files are written and flushed to disk
+        os.sync()
 
-    with h5py.File(out_path.replace(DOCKER_TMP_SUB_DIR + "/", tempdir), "r") as f:
-        # Print all root level object names (aka keys) 
-        # these can be group or dataset names 
-        a_group_key = list(f.keys())[0]
-        ds_arr = f[a_group_key][()]  # returns as a numpy array
-        os.system(f"rm -rf '{absolute_temp_path}' 2> /dev/null")
-    ret = ds_arr[1]
-    ret = np.flip(np.rot90(ret),0)
-    return ret
+        with h5py.File(out_path.replace(DOCKER_TMP_SUB_DIR + "/", tempdir), "r") as f:
+            # Print all root level object names (aka keys) 
+            # these can be group or dataset names 
+            a_group_key = list(f.keys())[0]
+            ds_arr = f[a_group_key][()]  # returns as a numpy array
+            os.system(f"rm -rf '{absolute_temp_path}' 2> /dev/null")
+        ret = ds_arr[1]
+        ret = np.flip(np.rot90(ret),0)
+
+        edges_file = os.path.join(outdir, f'{image_name}_edges.csv')
+        nodes_file = os.path.join(outdir, f'{image_name}_nodes.csv')
+
+        # Clean with sanity checks
+        df_edges = pd.read_csv(edges_file, sep=";", index_col=0)
+        df_nodes = pd.read_csv(nodes_file, sep=";", index_col=0)
+        df_edges, df_nodes = _sanity_filter(df_edges,df_nodes, z_dim=img_nii.shape[2])
+        df_edges.to_csv(edges_file, sep=";")
+        # flush the files to disk
+        os.sync()
+
+        if graph_image:
+            graph_json = pd.read_json(os.path.join(outdir, f'{image_name}_graph.json'), orient="records")
+            img = generate_image_from_graph_json(graph_json, df_edges, dim=img_nii.shape[0], pixel_size=3, colorize=colorize, color_thresholds=color_thresholds)
+            Image.fromarray(img).save(os.path.join(outdir, f'{image_name}_graph.png'))
+
+        return ret
+    except FileNotFoundError as e:
+        error_msg = f"{e}\nThere was likely an error during the graph extraction process. Please check the logs for more information using '--verbose --threads 1'"
+        print(f"\033[91m{error_msg}\033[0m")
+        raise Exception(error_msg)
+    
 
 if __name__ == "__main__":
     import argparse

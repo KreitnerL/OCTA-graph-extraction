@@ -121,7 +121,7 @@
                         <MetaItem name="ProcessorGraphicsItem" type="PositionMetaData" x="116" y="267" />
                     </MetaData>
                     <Properties>
-                        <Property mapKey="continousSave" name="continousSave" value="false" /> <Property mapKey="graphFilePath" name="graphFilePath" guiName="Vessel Graph File" watchMode="1" fileWatchEnabled="false">
+                        <Property mapKey="continousSave" name="continousSave" value="true" /> <Property mapKey="graphFilePath" name="graphFilePath" guiName="Vessel Graph File" watchMode="1" fileWatchEnabled="false">
                             <paths noPathSet="false">
                                 <paths>
                                     <item value="graph.vvg" />
