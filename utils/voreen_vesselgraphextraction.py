@@ -32,7 +32,9 @@ def extract_vessel_graph(
         graph_image: bool = True,
         colorize: Literal["continuous", "thresholds", "random", "white"] = "continuous",
         color_thresholds: list[float] = None,
-        verbose=False
+        verbose=False,
+        radius_correction_factor: float = -1.0,
+        image_size_mm: float = 3.0
     ):
     """
     Extracts a vessel graph from a NIFTI image using Voreen's vessel graph extraction tool and stores the results in the specified output directory.
@@ -53,6 +55,9 @@ def extract_vessel_graph(
         color_thresholds (list[float]): A list of thresholds for coloring edges when `colorize` is set to "thresholds". 
             This should be provided as a list of floats
         verbose (bool): Whether to print verbose output.
+        radius_correction_factor (float): Additive correction factor for the radius estimation. Default is -1.0 to correct for Voreen's overestimation by 1 pixel measured on synthetic data.
+        image_size_mm (float): The size of the image in millimeters, used for scaling.
+
     Returns:
         np.ndarray: The extracted vessel graph as a NumPy array.
     Raises:
@@ -162,7 +167,15 @@ def extract_vessel_graph(
 
         if graph_image:
             graph_json = pd.read_json(os.path.join(outdir, f'{image_name}_graph.json'), orient="records")
-            img = generate_image_from_graph_json(graph_json, df_edges, dim=img_nii.shape[0], pixel_size=3, colorize=colorize, color_thresholds=color_thresholds)#
+            img = generate_image_from_graph_json(
+                graph_json,
+                df_edges,
+                dim=img_nii.shape[0],
+                image_size_mm=image_size_mm,
+                colorize=colorize,
+                color_thresholds=color_thresholds,
+                radius_correction_factor=radius_correction_factor
+            )
             segmentation_2d_mask = img_nii.get_fdata().max(axis=2).astype(np.uint8) // 255
             Image.fromarray(img * segmentation_2d_mask[...,np.newaxis]).save(os.path.join(outdir, f'{image_name}_graph.png'))
 

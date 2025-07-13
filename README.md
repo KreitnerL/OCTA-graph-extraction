@@ -107,17 +107,8 @@ Use the `run_analysis.sh` script for automated container management:
 ./run_analysis.sh etdrs_pipeline --source_dir /path/to/data --output_dir /path/to/results
 ```
 
-**🔧 Further Options:**
-```bash
-# Pass additional arguments to the underlying commands
-./run_analysis.sh graph --source_dir /data --output_dir /results -- --verbose --threads 8
-
-# Use different temporary directory
-./run_analysis.sh etdrs_pipeline --source_dir /data --output_dir /results --tmp_dir /custom/tmp
-
-# Help and available commands
-./run_analysis.sh --help
-```
+> [!IMPORTANT]
+> Please note that the predicted radii by Voreen might be subject to small additive error factor. You can manually configure the necessary correction factor for image plotting with the `--radius_correction_factor` argument. On synthetic data, we measured 1 pixel overestimation, hence this is the default. The `_edges.csv` and `_graph.json` files always show the 'raw' output without any corrections.
 
 ## ETDRS Grid Analysis
 The ETDRS (Early Treatment Diabetic Retinopathy Study) grid analysis divides the retinal image into standardized regions for quantitative analysis. The center of the grid is automatically set to the center of the FAZ (Foveal Avascular Zone).

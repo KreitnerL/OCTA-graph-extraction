@@ -25,7 +25,11 @@ DOCKER_WORK_DIR = '/var/results'
 
 if __name__ == "__main__":
     # Parse input arguments
-    parser = argparse.ArgumentParser(description='')
+    parser = argparse.ArgumentParser(
+        description='Extract vessel graphs from OCTA images using Voreen.\
+            \nPlease note that the predicted radii by Voreen might be subject to small additive error factor.\
+            You can manually configure the necessary correction factor for image plotting with the --radius_correction_factor argument.\
+            On synthetic data, we measured 1 pixel overestimation, hence this is the default.')
     parser.add_argument('--image_files', help="Absolute path to the segmentation maps", type=str, required=True)
     parser.add_argument('--tmp_dir', help="Absolute path to the temporary directory where voreen will store its temporary files", type=str, default=os.getenv("DOCKER_TMP_DIR", "/var/tmp"))
 
@@ -45,6 +49,8 @@ if __name__ == "__main__":
     parser.add_argument('--z_dim', help="Z dimension of the 3D segmentation mask. Only needed for 2D segmentation masks.", type=int, default=64)
 
     parser.add_argument('--etdrs', action="store_true", help="Analyse vessels in ETDRS grid")
+    parser.add_argument('--mm', help="Size of the image in mm. Default is 3 mm", type=float, default=3.0)
+    parser.add_argument('--radius_correction_factor', help="Additive correction factor for the radius estimation. Default is -1.0 to correct for Voreen's overestimation by 1 pixel measured on synthetic data.", type=float, default=-1.0)
     parser.add_argument('--faz_dir', help="Absolute path to the folder containing all the faz segmentation maps. Only needed for ETDRS analysis", type=str, default=None)
     parser.add_argument('--threads', help="Number of parallel threads. By default all available threads but one are used.", type=int, default=-1)
 
@@ -199,6 +205,7 @@ if __name__ == "__main__":
                     colorize=args.colorize,
                     color_thresholds=color_thresholds,
                     verbose=bool(args.verbose),
+                    image_size_mm=args.mm
                 )
     else:
         def task(ves_seg_path: str):
@@ -234,6 +241,8 @@ if __name__ == "__main__":
                 colorize=args.colorize,
                 color_thresholds=color_thresholds,
                 verbose=bool(args.verbose),
+                radius_correction_factor=args.radius_correction_factor,
+                image_size_mm=args.mm
             )
 
     if args.threads == -1:

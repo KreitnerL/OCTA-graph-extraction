@@ -62,6 +62,8 @@ if __name__ == "__main__":
     parser.add_argument('--radius_thresholds', type=str, default="0,inf", help="Comma separated list of thresholds for vessel stratification [um].")
     parser.add_argument('--mm', type=float, default=3.0, help="Height of the segmentation volume in mm. Default is 3 mm")
     parser.add_argument('--etdrs', action="store_true", help="If set, use ETDRS grid stratification")
+    parser.add_argument('--radius_correction_factor', type=float, default=-1.0, 
+                        help="Additive correction factor for the radius estimation. Default is -1.0 to correct for Voreen's overestimation by 1 pixel measured on synthetic data.")
     parser.add_argument('--center_radius', type=float, default=3/6, help="Radius of ETDRS center radius in mm")
     parser.add_argument('--inner_radius', type=float, default=3/2.4, help="Radius of ETDRS center radius in mm")
     args = parser.parse_args()
@@ -155,7 +157,7 @@ if __name__ == "__main__":
         for t in radius_intervals:
             graph_img_filtered_t = generate_image_from_graph_json(
                 graph_json=graph_json, edges_df=edge_df, radius_interval=t,
-                dim=faz.shape[0], pixel_size=args.mm, colorize="white"
+                dim=faz.shape[0], image_size_mm=args.mm, colorize="white", radius_correction_factor=args.radius_correction_factor
             ).astype(np.float32)/255 * seg_img
             graph_images.append(graph_img_filtered_t)
         

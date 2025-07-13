@@ -92,7 +92,7 @@ def rasterize_forest(forest: dict,
     return img_gray, blackdict
 
 @deprecated("Use generate_image_from_graph_json instead")
-def node_edges_to_graph(nodes_file_path: str, edges_file_path: str, shape: tuple[int], colorize=False, radius_scale_factor=1, thresholds=None) -> np.ndarray:
+def node_edges_to_graph(nodes_file_path: str, edges_file_path: str, shape: tuple[int], colorize=False, radius_scale_factor=-1, thresholds=None) -> np.ndarray:
     nodes = dict()
     with open(nodes_file_path, newline='') as csvfile:
         reader = csv.DictReader(csvfile, delimiter=";")
@@ -106,7 +106,7 @@ def node_edges_to_graph(nodes_file_path: str, edges_file_path: str, shape: tuple
         for row in reader:
             p1 = np.array(nodes[row["node1id"]])/shape[0]
             p2 = np.array(nodes[row["node2id"]])/shape[0]
-            radius = float(row["avgRadiusAvg"])*radius_scale_factor/shape[0]
+            radius = float(row["avgRadiusAvg"])+radius_scale_factor/shape[0]
             forest.append({"node1": p1, "node2": p2, "radius": radius})
     img, _ = rasterize_forest(forest, 16, colorize=colorize, thresholds=thresholds)
     return img
@@ -117,9 +117,10 @@ def generate_image_from_graph_json(
         edges_df: pd.DataFrame,
         radius_interval: tuple[float] = (0, np.inf),
         dim: int=1216,
-        pixel_size: float=3,
+        image_size_mm: float=3,
         colorize: Literal["continuous", "thresholds", "random", "white"] = "white",
-        color_thresholds: list[float] = None
+        color_thresholds: list[float] = None,
+        radius_correction_factor: float = -1.0
     ) -> np.ndarray:
     """
     Generates an image from a graph JSON structure and edges DataFrame.
@@ -128,7 +129,7 @@ def generate_image_from_graph_json(
         edges_df (pd.DataFrame): DataFrame containing edge properties, including 'avgRadiusAvg'.
         radius_interval (tuple[float]): A tuple specifying the minimum and maximum radius for edges to be included in the image.
         dim (int): The dimension of the image (assumed square).
-        pixel_size (float): The size of each pixel in the image.
+        image_size_mm (float): The size of the image in millimeters, used for scaling.
         colorize (Literal["continuous", "thresholds", "random", None]): Specifies how to color the edges.
             - "continuous": Color edges based on their radius, using a continuous color map.
             - "thresholds": Color edges based on the given thresholds.
@@ -147,10 +148,11 @@ def generate_image_from_graph_json(
         if color_thresholds is None:
             raise ValueError("color_thresholds must be provided when colorize is 'thresholds'")
         intensities = np.linspace(0.1, 1, num=len(color_thresholds) + 1)
-        thresholds = np.array([0, *color_thresholds, math.inf]) / pixel_size
+        thresholds = np.array([0, *color_thresholds, math.inf]) / image_size_mm
     for e in graph_json["graph"]["edges"]:
         if e["id"] in edges_df.index:
-            edge_radius= (edges_df.loc[e["id"], "avgRadiusAvg"]-1)/dim
+            # Correct the radius based on the correction factor
+            edge_radius= (edges_df.loc[e["id"], "avgRadiusAvg"] + radius_correction_factor)/dim
             edge_radii = list()
             edge_pos = list()
             for v in e.get("skeletonVoxels", []):
@@ -160,7 +162,7 @@ def generate_image_from_graph_json(
                     edge_pos.append((v["pos"][0]/dim, v["pos"][1]/dim))
             edge_median = np.median(edge_radii) if edge_radii else 0
             # Check if edge_median is within the specified radius interval
-            if not (radius_interval[0] <= edge_median*pixel_size <= radius_interval[1]):
+            if not (radius_interval[0] <= edge_median*image_size_mm <= radius_interval[1]):
                 continue
             circles.extend([Circle(xy=(x, y), radius=r+colored_radius_add) for (x, y), r in zip(edge_pos, edge_radii)])
             radii.extend(edge_radii)
@@ -168,7 +170,7 @@ def generate_image_from_graph_json(
                 color = np.random.rand(3)
                 colors.extend([color] * len(edge_radii))
             elif colorize == "continuous":
-                cont_colors = np.minimum(np.array(edge_radii) * pixel_size / 0.015,1)
+                cont_colors = np.minimum(np.array(edge_radii) * image_size_mm / 0.015,1)
                 colors.extend(cm.plasma(cont_colors))
             elif colorize == "thresholds":
                 if color_thresholds is None:
