@@ -47,7 +47,6 @@ If you use this software in your research, please cite:
     - [Verbose Output](#verbose-output)
     - [Manual Container Debugging (Full Docker)](#manual-container-debugging-full-docker)
 - [📖 Additional Resources](#-additional-resources)
-  - [Notebook Examples](#notebook-examples)
 
 # 🛠️ Installation & Setup
 
@@ -278,8 +277,5 @@ docker-compose down
 
 
 # 📖 Additional Resources
-
-## Notebook Examples
-Check out our jupyter notebooks for detailed ETDRS analysis examples:
-- [docker_example_ETDRS_analysis.ipynb](./docker_example_ETDRS_analysis.ipynb) - Uses Docker setup
-- [manual_example_ETDRS_analysis.ipynb](./manual_example_ETDRS_analysis.ipynb) - Uses Python files directly
+- **OCTA vessel segmentation tool** [https://github.com/aiforvision/OCTA-autosegmentation](https://github.com/aiforvision/OCTA-autosegmentation) - Code + pretrained models for automated OCTA segmentation
+- **Notebook Example** [manual_example_ETDRS_analysis.ipynb](./manual_example_ETDRS_analysis.ipynb) - Uses the python + docker setup for a detailed ETDRS analysis of sample data
