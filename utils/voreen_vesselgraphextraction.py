@@ -11,7 +11,6 @@ from PIL import Image
 
 DOCKER_TMP_DIR = '/var/tmp'
 DOCKER_CACHE_DIR = '/var/cache'
-DOCKER_WORK_DIR = '/var/results'
 DOCKER_VOREEN_TOOL_PATH = '/home/software/voreen-voreen-5.3.0/voreen/bin/'
 # DOCKER_VOREEN_TOOL_PATH = '/home/software/voreen-src-unix-nightly/bin'
 
@@ -25,6 +24,7 @@ def extract_vessel_graph(
         img_nii: nib.nifti1.Nifti1Image,
         image_name: str,
         outdir: str,
+        DOCKER_WORK_DIR: str,
         tmp_dir: str,
         bulge_size: float,
         workspace_file: str,
@@ -66,7 +66,6 @@ def extract_vessel_graph(
     volume_path = os.path.join(tempdir, f'{image_name}.nii')
     nib.save(img_nii, volume_path)
 
-
     bulge_size_identifier = f'{bulge_size}'
     bulge_size_identifier = bulge_size_identifier.replace('.','_')
 
@@ -75,11 +74,12 @@ def extract_vessel_graph(
     if container_name is not None:
         tmp_dir_folder = tempdir.removesuffix("/").split('/')[-1]
         DOCKER_TMP_SUB_DIR = f"{DOCKER_TMP_DIR}/{tmp_dir_folder}"
-        volume_path = volume_path.replace(tempdir, DOCKER_TMP_SUB_DIR+"/")
+        # Use container paths for Voreen commands
+        docker_volume_path = volume_path.replace(tmp_dir, DOCKER_TMP_DIR)
         out_path = f'{DOCKER_TMP_SUB_DIR}/sample.h5'
     else:
+        docker_volume_path = volume_path
         out_path = f'{tempdir}sample.h5'
-
 
     bulge_size_identifier = f'{bulge_size}'
     bulge_size_identifier = bulge_size_identifier.replace('.','_')
@@ -95,12 +95,12 @@ def extract_vessel_graph(
 
 
     # Replace the target string
-    filedata = filedata.replace("volume.nii", volume_path)
+    filedata = filedata.replace("volume.nii", docker_volume_path if container_name else volume_path)
     filedata = filedata.replace("nodes.csv", node_path)
     filedata = filedata.replace("edges.csv", edge_path)
     filedata = filedata.replace("graph.vvg", graph_path)
     filedata = filedata.replace('<Property mapKey="minBulgeSize" name="minBulgeSize" value="3" />', bulge_path)
-    filedata = filedata.replace("input.nii", volume_path)
+    filedata = filedata.replace("input.nii", docker_volume_path if container_name else volume_path)
     filedata = filedata.replace("output.h5", out_path)
 
     # Write the file out again
@@ -134,11 +134,13 @@ def extract_vessel_graph(
         # Reset terminal formatting after container execution
         print('\033[0m', end='', flush=True)
     try:
-        os.rename(graph_path.replace(DOCKER_WORK_DIR, outdir), graph_path.replace(DOCKER_WORK_DIR, outdir).replace(".vvg", ".json"))
+        graph_host_path = graph_path.replace(DOCKER_WORK_DIR, outdir)
+        os.rename(graph_host_path, graph_host_path.replace(".vvg", ".json"))
         # Make sure all files are written and flushed to disk
         os.sync()
 
-        with h5py.File(out_path.replace(DOCKER_TMP_SUB_DIR + "/", tempdir), "r") as f:
+        h5_file_path = out_path.replace(DOCKER_TMP_SUB_DIR + "/", tempdir) if container_name else out_path
+        with h5py.File(h5_file_path, "r") as f:
             # Print all root level object names (aka keys) 
             # these can be group or dataset names 
             a_group_key = list(f.keys())[0]
@@ -160,8 +162,9 @@ def extract_vessel_graph(
 
         if graph_image:
             graph_json = pd.read_json(os.path.join(outdir, f'{image_name}_graph.json'), orient="records")
-            img = generate_image_from_graph_json(graph_json, df_edges, dim=img_nii.shape[0], pixel_size=3, colorize=colorize, color_thresholds=color_thresholds)
-            Image.fromarray(img).save(os.path.join(outdir, f'{image_name}_graph.png'))
+            img = generate_image_from_graph_json(graph_json, df_edges, dim=img_nii.shape[0], pixel_size=3, colorize=colorize, color_thresholds=color_thresholds)#
+            segmentation_2d_mask = img_nii.get_fdata().max(axis=2).astype(np.uint8) // 255
+            Image.fromarray(img * segmentation_2d_mask[...,np.newaxis]).save(os.path.join(outdir, f'{image_name}_graph.png'))
 
         return ret
     except FileNotFoundError as e:

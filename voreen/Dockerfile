@@ -23,4 +23,7 @@ RUN printf 'set(VRN_MODULE_BASE ON CACHE BOOL "" FORCE)\nset(VRN_MODULE_BIGDATAI
 RUN cd /home/software/voreen-voreen-5.3.0/voreen && cmake .
 RUN cd /home/software/voreen-voreen-5.3.0/voreen && make -j $NUMBER_OF_PROCESSES
 
+# Set proper permissions for Voreen data directory to allow any user to write
+RUN chmod 777 -R /home/software/voreen-voreen-5.3.0/voreen/data
+
 RUN echo "Successfully build image!"

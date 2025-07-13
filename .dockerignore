@@ -1,0 +1,26 @@
+# Based on .gitignore patterns
+.vscode/
+images/
+!images/etdrs.png
+!images/graph_extraction_pipeline.png
+voreen/tmpdir
+**/__pycache__
+**/debug*
+wandb/
+uv.lock
+
+# Additional Docker-specific ignores
+.git/
+.gitignore
+README.md
+*.md
+.env
+.env.*
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Development files
+.pytest_cache/
+.coverage
+*.log

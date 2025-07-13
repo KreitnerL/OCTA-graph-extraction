@@ -17,7 +17,6 @@ def remove_plexus_code(name: str):
         name = name.replace(code, "")
     return name
 
-
 def remove_eye_code(name: str):
     """Remove eye codes (OS/OD) from filename."""
     return name.replace("_OS", "").replace("_OD", "")
@@ -30,12 +29,13 @@ def remove_extensions(basename: str):
 
 def code_name(path: str):
     """Extract standardized code name from file path."""
-    return (remove_plexus_code(remove_extensions(os.path.basename(path)))
-            .removeprefix("faz_")
-            .removeprefix("model_")
+    return (remove_prefixes(remove_plexus_code(remove_extensions(os.path.basename(path))).removeprefix("faz_"))
             .replace(" OCTA", "")
             .replace(" ", "_")
             .replace("__", "_"))
+
+def remove_prefixes(name: str):
+    return name.removeprefix("model_").removeprefix("pred_")
 
 
 def generate_density_title(area: str, lower: int, upper: int) -> str:
@@ -54,9 +54,12 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description='Generate analysis summary from OCTA graph data.')
     parser.add_argument('--source_dir', type=str, help="Absolute path to the folder graph features", required=True)
+    parser.add_argument('--segmentation_dir', type=str, help="Absolute path to the segmentation maps", required=True)
+
     parser.add_argument('--output_dir', type=str, help="Absolute path to the output folder. If none is given, save in source folder.")
     parser.add_argument('--faz_files', type=str, help="Absolute path to the faz segmentation files. Required for etdrs analysis.")
-    parser.add_argument('--radius_thresholds', type=str, default=None, help="Comma separated list of thresholds for vessel stratification [um].")
+    
+    parser.add_argument('--radius_thresholds', type=str, default="0,inf", help="Comma separated list of thresholds for vessel stratification [um].")
     parser.add_argument('--mm', type=float, default=3.0, help="Height of the segmentation volume in mm. Default is 3 mm")
     parser.add_argument('--etdrs', action="store_true", help="If set, use ETDRS grid stratification")
     parser.add_argument('--center_radius', type=float, default=3/6, help="Radius of ETDRS center radius in mm")
@@ -66,6 +69,7 @@ if __name__ == "__main__":
     # Find and validate input files
     edge_files = natsorted(glob.glob(os.path.join(args.source_dir, "**/*_edges.csv"), recursive=True))
     graph_files = natsorted(glob.glob(os.path.join(args.source_dir, "**/*_graph.json"), recursive=True))
+    segmentation_files = natsorted(glob.glob(os.path.join(args.segmentation_dir, "**/*.png"), recursive=True))
     assert edge_files, f"No '_edges.csv' files found in folder {args.source_dir}!"
     assert graph_files, f"No '_graph.json' files found in folder {args.source_dir}!"
 
@@ -90,18 +94,17 @@ if __name__ == "__main__":
             center_radius=args.center_radius/args.mm*faz.shape[0], 
             inner_radius=args.inner_radius/args.mm*faz.shape[0]
         )
-        AREA_MASK_MAP = {"C0": center_mask, "S1": q1_mask, "N1": q2_mask, "I1": q3_mask, "T1": q4_mask}
-        AREA_FACTOR_MAP = {k: v.sum() for k, v in AREA_MASK_MAP.items()}
+        AREA_FACTOR_MAP = {"C0": center_mask.sum(), "S1": q1_mask.sum(), "N1": q2_mask.sum(), "I1": q3_mask.sum(), "T1": q4_mask.sum()}
     else:
-        AREA_MASK_MAP = {"full": np.ones_like(faz)}
-        AREA_FACTOR_MAP = {"full": np.ones_like(faz).sum()}
+        AREA_FACTOR_MAP = {"": np.ones_like(faz).sum()}
+
     
     SCALING_FACTOR = args.mm * 1000 / faz.shape[0]
-    thresholds = [int(t) for t in args.radius_thresholds.split(",")] if args.radius_thresholds else []
+    thresholds = [float(t) for t in args.radius_thresholds.split(",")]
     THRESHOLDS = [None, *thresholds, None]
 
     d = []
-    for data_file, graph_file in tqdm(zip(edge_files, graph_files)):
+    for data_file, graph_file in tqdm(list(zip(edge_files, graph_files))):
         edge_df = pd.read_csv(data_file, sep=';', index_col=0)
         graph_json = pd.read_json(graph_file, orient='records')
 
@@ -111,16 +114,16 @@ if __name__ == "__main__":
         else:
             group, name = data_file.split("/")[-2:]
             image_ID = remove_extensions(name)
-        image_ID = image_ID.removeprefix("pred_")
+        image_ID = remove_prefixes(image_ID)
         
         # Determine area sector
         sector_codes = [k for k in AREA_FACTOR_MAP.keys() if k in name]
-        assert len(sector_codes) == 1, f"The file name must contain the sector code! Found: {sector_codes}. Name: {name}"
+        assert len(sector_codes) == 1, f"The file name must contain the sector code! Found: {sector_codes}. Name: {name}. Make sure you use --etdrs for ETDRS analysis."
         area = sector_codes[0]
         area_factor = AREA_FACTOR_MAP[area]
 
         # Initialize data dictionary for primary areas
-        if area in ("C0", "full"):
+        if area in ("C0", ""):
             dd = {
                 "Image_ID": remove_eye_code(remove_plexus_code(image_ID)),
                 "Group": remove_eye_code(remove_plexus_code(group)),
@@ -139,16 +142,21 @@ if __name__ == "__main__":
             dd = d[-1]
 
         # Compute densities for each radius interval
-        radius_intervals = ([0, np.inf] if not args.radius_thresholds 
-                           else list(zip([0] + [float(t)/1000 for t in args.radius_thresholds.split(",")], 
-                                        [float(t)/1000 for t in args.radius_thresholds.split(",")] + [np.inf])))
+        radius_intervals = list(zip([0] + [float(t)/1000 for t in args.radius_thresholds.split(",")], 
+                                        [float(t)/1000 for t in args.radius_thresholds.split(",")] + [np.inf]))
         
+        # Find the corresponding segmentation file
+        seg_file = next((f for f in segmentation_files if remove_prefixes(remove_extensions(os.path.basename(f))) == image_ID), None)
+        if seg_file is None:
+            raise FileNotFoundError(f"No segmentation file found for {data_file} with code {image_ID}!")
+        seg_img = np.array(Image.open(seg_file), np.float32)/255
+
         graph_images = []
         for t in radius_intervals:
             graph_img_filtered_t = generate_image_from_graph_json(
                 graph_json=graph_json, edges_df=edge_df, radius_interval=t,
                 dim=faz.shape[0], pixel_size=args.mm, colorize="white"
-            ).astype(np.float32)/255 * AREA_MASK_MAP[area]
+            ).astype(np.float32)/255 * seg_img
             graph_images.append(graph_img_filtered_t)
         
         # Normalize overlapping pixels and calculate densities
@@ -164,7 +172,7 @@ if __name__ == "__main__":
             title = generate_density_title(area, THRESHOLDS[i], THRESHOLDS[i+1])
             dd[title] = densities[i] if edge_df.shape[0] > 0 else 0
                 
-        if area in ("C0", "full"):
+        if area in ("C0", ""):
             d.append(dd)
 
     # Save results

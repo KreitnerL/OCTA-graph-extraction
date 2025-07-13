@@ -1,0 +1,53 @@
+services:
+  # Voreen service - contains the Voreen application
+  voreen:
+    build:
+      context: ./voreen
+      dockerfile: Dockerfile
+      args:
+        NUMBER_OF_PROCESSES: 4
+    image: voreen:latest
+    container_name: voreen-container
+    user: "${UID:-1000}:${GID:-1000}"
+    volumes:
+      # Mount host directories that will be shared between containers
+      - ${HOST_TMP_DIR:-/tmp/voreen}:/var/tmp
+      - ${HOST_SRC_DIR:-./data/src}:/var/src:ro
+      - ${HOST_OUTPUT_DIR:-./data/output}:/var/results
+    command: tail -f /dev/null
+    stdin_open: true
+    tty: true
+
+  # Python application service - contains the Python codebase
+  octa-graph-extraction:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NUMBER_OF_PROCESSES: 4
+    image: octa-graph-extraction:latest
+    container_name: octa-python-container
+    user: "${UID:-1000}:${GID:-1000}"
+    group_add:
+      - "${DOCKER_GID:-988}"  # Add user to docker group inside container
+    volumes:
+      # Mount Docker socket for DooD (Docker outside of Docker)
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mount the same host directories so both containers can access the data
+      - ${HOST_TMP_DIR:-/tmp/voreen}:/tmp/voreen
+      - ${HOST_SRC_DIR:-./data/src}:/data/src:ro
+      - ${HOST_OUTPUT_DIR:-./data/output}:/data/output
+    environment:
+      # Set environment variables for the application
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - MPLCONFIGDIR=/tmp/matplotlib  # Fix matplotlib config directory
+    depends_on:
+      - voreen
+    stdin_open: true
+    tty: true
+    # Override the entrypoint to keep the container running
+    command: tail -f /dev/null
+
+networks:
+  default:
+    name: octa-network

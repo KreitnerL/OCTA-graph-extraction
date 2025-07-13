@@ -8,6 +8,7 @@ from multiprocessing import cpu_count
 import docker
 import nibabel as nib
 import numpy as np
+from dotenv import load_dotenv
 from natsort import natsorted
 from PIL import Image
 from scipy import ndimage
@@ -16,15 +17,17 @@ from utils.convert_2d_to_3d import convert_2d_to_3d
 from utils.ETDRS_grid import get_ETDRS_grid_indices
 from utils.voreen_vesselgraphextraction import extract_vessel_graph
 
+load_dotenv()
 project_folder = str(pathlib.Path(__file__).parent.resolve())
 
 DOCKER_VOREEN_BIN = "/home/software/voreen-voreen-5.3.0/voreen/bin/"
+DOCKER_WORK_DIR = '/var/results'
 
 if __name__ == "__main__":
     # Parse input arguments
     parser = argparse.ArgumentParser(description='')
     parser.add_argument('--image_files', help="Absolute path to the segmentation maps", type=str, required=True)
-    parser.add_argument('--tmp_dir', help="Absolute path to the temporary directory where voreen will store its temporary files", type=str, default="/tmp/voreen")
+    parser.add_argument('--tmp_dir', help="Absolute path to the temporary directory where voreen will store its temporary files", type=str, default=os.getenv("DOCKER_TMP_DIR", "/var/tmp"))
 
     parser.add_argument('--output_dir', help="Absolute path to the folder where the graph and feature files should be stored."
                         +"If no folder is provided, the files will be stored in the same directory as the source images.", type=str, default=None)
@@ -41,7 +44,7 @@ if __name__ == "__main__":
     parser.add_argument('--verbose', action="store_true", help="Print log information from voreen")
     parser.add_argument('--z_dim', help="Z dimension of the 3D segmentation mask. Only needed for 2D segmentation masks.", type=int, default=64)
 
-    parser.add_argument('--ETDRS', action="store_true", help="Analyse vessels in ETDRS grid")
+    parser.add_argument('--etdrs', action="store_true", help="Analyse vessels in ETDRS grid")
     parser.add_argument('--faz_dir', help="Absolute path to the folder containing all the faz segmentation maps. Only needed for ETDRS analysis", type=str, default=None)
     parser.add_argument('--threads', help="Number of parallel threads. By default all available threads but one are used.", type=int, default=-1)
 
@@ -57,8 +60,21 @@ if __name__ == "__main__":
     color_thresholds = [float(t) for t in args.thresholds.split(",")] if args.thresholds is not None else None
 
     container_name = None
-    # Start docker container if not running in docker
-    if not os.path.exists("/.dockerenv"):
+    # Check if we're running in Docker (DooD setup)
+    running_in_docker = os.path.exists("/.dockerenv")
+    
+    # Check if a voreen container from docker-compose is already running
+    docker_compose_container = None
+    client = docker.from_env()
+    for container in client.containers.list(filters={"status": "running"}):
+        if container.name == "voreen-container":  # docker-compose container name
+            docker_compose_container = container
+            container_name = container.name
+            print(f"Found existing docker-compose Voreen container: {container_name}")
+            break
+    
+    # Start docker container if not running in docker and no docker-compose container found
+    if not running_in_docker and docker_compose_container is None:
         # Check if container of this image is running
         client = docker.from_env()
         for container in client.containers.list(filters={"status": "running"}):
@@ -73,7 +89,7 @@ if __name__ == "__main__":
                 tty=True,
                 stdin_open=True,
                 command="tail -f /dev/null",
-                user="root",
+                user=f"{os.getuid()}:{os.getgid()}",
                 volumes={
                     args.tmp_dir: {'bind': "/var/tmp", 'mode': 'rw'},
                     source_dir: {'bind': "/var/src", 'mode': 'ro'},
@@ -81,11 +97,36 @@ if __name__ == "__main__":
                 },
             )
             container_name = container.name
-            container.exec_run(user="root", cmd=f"chown {os.getuid()}:{os.getgid()} /var/tmp && chown {os.getuid()}:{os.getgid()} /var/results && chmod 777 -R {DOCKER_VOREEN_BIN}/../data")
-    else:
-        print("Running in Docker container. Using voreen from the container.")
+            # Ensure Voreen can write to its internal data directory
+            container.exec_run(user="root", cmd=f"chmod 777 -R {DOCKER_VOREEN_BIN}/../data")
+    elif running_in_docker:
+        print("Running in Docker container. Using DooD setup to communicate with Voreen container.")
+        # In DooD setup, we need to start the Voreen container from within our Python container
+        client = docker.from_env()
+        for container in client.containers.list(filters={"status": "running"}):
+            if container.image.tags and any(args.voreen_image_name in tag for tag in container.image.tags):
+                container_name = container.name
+                break
+        if container_name is None:
+            print(f"No running container for image {args.voreen_image_name} found. Starting a new container...")
+            container = client.containers.run(
+                image=args.voreen_image_name,
+                detach=True,
+                tty=True,
+                stdin_open=True,
+                command="tail -f /dev/null",
+                user=f"{os.getuid()}:{os.getgid()}",
+                volumes={
+                    args.tmp_dir: {'bind': "/var/tmp", 'mode': 'rw'},
+                    source_dir: {'bind': "/var/src", 'mode': 'ro'},
+                    args.output_dir: {'bind': "/var/results", 'mode': 'rw'}
+                },
+            )
+            container_name = container.name
+            # Ensure Voreen can write to its internal data directory
+            container.exec_run(user="root", cmd=f"chmod 777 -R {DOCKER_VOREEN_BIN}/../data")
 
-    if args.ETDRS:
+    if args.etdrs:
         assert bool(args.faz_dir)
 
         def get_code_name(path: str) -> str:
@@ -99,18 +140,26 @@ if __name__ == "__main__":
 
 
         def task(ves_seg_path: str):
-            image_name = os.path.basename(ves_seg_path)
             extension = ".nii.gz" if ves_seg_path.endswith(".nii.gz") else "."+ves_seg_path.split(".")[-1]
+            image_name = os.path.basename(ves_seg_path).removesuffix(extension)
+            if args.output_dir is None:
+                output_dir = os.path.dirname(ves_seg_path)
+            else:
+                output_dir = args.output_dir
+            output_dir= os.path.join(os.path.dirname(ves_seg_path).replace(source_dir, output_dir),image_name.removesuffix(extension))
+            os.makedirs(output_dir, exist_ok=True)
+            
+            if extension == ".nii.gz":
+                img_nii: nib.Nifti1Image = nib.load(ves_seg_path)
+                ves_seg_3d = img_nii.get_fdata(dtype=np.uint8)
+            else:
+                ves_seg = np.array(Image.open(ves_seg_path), np.uint8)
+                ves_seg_3d = convert_2d_to_3d(ves_seg, z_dim=args.z_dim)
+            
             faz_code_name = get_code_name(ves_seg_path).replace("SVC", "DVC").replace("svc", "dvc")
             if faz_code_name not in faz_code_name_map:
                 print(f"Skipping analysis for image {ves_seg_path}. No FAZ found.")
                 return
-            if extension == ".nii.gz":
-                img_nii: nib.Nifti1Image = nib.load(ves_seg_path)
-                ves_seg_3d = img_nii.get_fdata()
-            else:
-                ves_seg = np.array(Image.open(ves_seg_path), np.uint8)
-                ves_seg_3d = convert_2d_to_3d(ves_seg, z_dim=args.z_dim)
 
             faz_seg = np.array(Image.open(faz_code_name_map[faz_code_name]))
             center = ndimage.center_of_mass(faz_seg)
@@ -120,12 +169,6 @@ if __name__ == "__main__":
             else:
                 suffixes = ["C0", "S1", "T1", "I1", "N1"]
 
-            if args.output_dir is None:
-                output_dir = os.path.dirname(ves_seg_path)
-            else:
-                output_dir = args.output_dir
-            output_dir= os.path.join(os.path.dirname(ves_seg_path).replace(source_dir, output_dir),image_name.removesuffix(extension))
-            os.makedirs(output_dir, exist_ok=True)
 
             for indices, suffix in zip(ETDRS_grid_indices, suffixes):
                 mask = np.zeros_like(faz_seg, dtype=np.bool_)
@@ -136,14 +179,18 @@ if __name__ == "__main__":
 
                 ves_seg_masked = np.copy(ves_seg_3d)
                 ves_seg_masked[~mask,:] = 0
-                
-                ves_seg_masked_nii = nib.Nifti1Image(ves_seg_masked.astype(np.uint8), np.eye(4))
 
+                header = nib.Nifti1Header()
+                header.set_xyzt_units(xyz="mm", t="sec")
+                header.set_data_shape(ves_seg_3d.shape)
+                ves_seg_masked_nii = nib.Nifti1Image(ves_seg_masked, np.eye(4), header=header)
+                
                 # Compute graph
                 extract_vessel_graph(
                     img_nii=ves_seg_masked_nii,
-                    image_name=image_name.replace(extension, "_"+suffix),
-                    outdir=output_dir,
+                    image_name=f"{image_name}_{suffix}",
+                    outdir=f"{output_dir}",
+                    DOCKER_WORK_DIR=f"{DOCKER_WORK_DIR}/{image_name}",
                     tmp_dir=args.tmp_dir,
                     bulge_size=args.bulge_size,
                     workspace_file=args.voreen_workspace,
@@ -156,12 +203,14 @@ if __name__ == "__main__":
     else:
         def task(ves_seg_path: str):
             extension = ".nii.gz" if ves_seg_path.endswith(".nii.gz") else "."+ves_seg_path.split(".")[-1]
+            image_name = os.path.basename(ves_seg_path).removesuffix(extension)
             if args.output_dir is None:
                 output_dir = os.path.dirname(ves_seg_path)
             else:
                 output_dir = args.output_dir
             output_dir = os.path.dirname(ves_seg_path).replace(source_dir, output_dir)
             os.makedirs(output_dir, exist_ok=True)
+            
             if extension == ".nii.gz":
                 img_nii = nib.load(ves_seg_path)
             else:
@@ -171,11 +220,12 @@ if __name__ == "__main__":
                 header.set_xyzt_units(xyz="mm", t="sec")
                 header.set_data_shape(ves_seg_3d.shape)
                 img_nii = nib.Nifti1Image(ves_seg_3d, np.eye(4), header=header)
-            image_name = os.path.basename(ves_seg_path).removesuffix(extension)
+
             extract_vessel_graph(
                 img_nii=img_nii,
-                image_name=image_name+"_full",
+                image_name=image_name,
                 outdir=output_dir,
+                DOCKER_WORK_DIR=DOCKER_WORK_DIR,
                 tmp_dir=args.tmp_dir,
                 bulge_size=args.bulge_size,
                 workspace_file=args.voreen_workspace,
