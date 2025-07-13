@@ -6,7 +6,6 @@ if [ "$1" = "--help" ] || [ "$1" = "-h" ] || [ -z "$1" ]; then
     echo "Usage: $0 <mode> [options...]"
     echo ""
     echo "Available modes:"
-    echo "  roi                   - Crop regions of interest from input images"
     echo "  faz_seg               - Perform FAZ (Foveal Avascular Zone) segmentation"
     echo "  graph                 - Extract vessel graphs from segmentation masks"
     echo "  summary               - Generate analysis summary from extracted graphs"
@@ -48,10 +47,7 @@ else
     SRC_DIR=/data/src
 fi
 
-if [ "$mode" = "roi" ]
-then
-    python /home/OCTA-graph-extraction/ROI_cropping.py --input_dir "$SRC_DIR" --output_dir "$OUTPUT_DIR" --tmp_dir "$TEMP_DIR" "$@"
-elif [ "$mode" = "faz_seg" ]
+if [ "$mode" = "faz_seg" ]
 then
     python /home/OCTA-graph-extraction/faz_segmentation.py --source_files "$SRC_DIR/**/*.*" --output_dir "$OUTPUT_DIR" "$@"
 elif [ "$mode" = "graph" ]
@@ -73,7 +69,7 @@ then
 else
     echo "Error: Mode '$mode' does not exist."
     echo ""
-    echo "Available modes: roi, faz_seg, graph, pipeline, etdrs_pipeline, summary"
+    echo "Available modes: faz_seg, graph, pipeline, etdrs_pipeline, summary"
     echo "Use '$0 --help' for detailed usage information."
     exit 1
 fi
