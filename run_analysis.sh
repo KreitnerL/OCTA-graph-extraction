@@ -131,7 +131,7 @@ echo ""
 # Function to cleanup containers on exit
 cleanup() {
     echo -e "\n${YELLOW}Cleaning up containers...${NC}"
-    docker-compose down --remove-orphans 2>/dev/null || true
+    docker compose down --remove-orphans 2>/dev/null || true
 }
 
 # Set trap to cleanup on exit
@@ -151,15 +151,15 @@ case "$COMMAND" in
     faz_seg|summary)
         echo -e "${BLUE}Starting octa-graph-extraction container only...${NC}"
         # Use --no-deps to avoid starting dependency containers
-        docker-compose --env-file "$ENV_FILE" up -d --no-deps octa-graph-extraction
+        docker compose --env-file "$ENV_FILE" up -d --no-deps octa-graph-extraction
         ;;
     graph|etdrs_pipeline|pipeline)
         echo -e "${BLUE}Starting all containers...${NC}"
-        docker-compose --env-file "$ENV_FILE" up -d
+        docker compose --env-file "$ENV_FILE" up -d
         ;;
     *)
         echo -e "${BLUE}Starting all containers...${NC}"
-        docker-compose --env-file "$ENV_FILE" up -d
+        docker compose --env-file "$ENV_FILE" up -d
         ;;
 esac
 
@@ -169,7 +169,7 @@ sleep 3
 
 # Run the command
 echo -e "${GREEN}Executing command...${NC}"
-docker-compose --env-file "$ENV_FILE" exec -T octa-graph-extraction \
+docker compose --env-file "$ENV_FILE" exec -T octa-graph-extraction \
     /home/OCTA-graph-extraction/docker/dockershell.sh \
     "$COMMAND" "${EXTRA_ARGS[@]}"
 

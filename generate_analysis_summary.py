@@ -3,13 +3,13 @@ import os
 
 import numpy as np
 import pandas as pd
-from natsort import natsorted, natsort_keygen
+from natsort import natsort_keygen, natsorted
 from numpy import nan
 from PIL import Image
 from tqdm import tqdm
-
 from utils.ETDRS_grid import get_ETDRS_grid_masks
 from utils.visualizer import generate_image_from_graph_json
+
 
 def remove_plexus_code(name: str):
     """Remove plexus layer codes from filename."""
@@ -102,7 +102,7 @@ if __name__ == "__main__":
 
     
     SCALING_FACTOR = args.mm * 1000 / faz.shape[0]
-    thresholds = [float(t) for t in args.radius_thresholds.split(",")]
+    thresholds = [float(t) for t in args.radius_thresholds.split(",")] if args.radius_thresholds else []
     THRESHOLDS = [None, *thresholds, None]
 
     d = []
@@ -144,8 +144,8 @@ if __name__ == "__main__":
             dd = d[-1]
 
         # Compute densities for each radius interval
-        radius_intervals = list(zip([0] + [float(t)/1000 for t in args.radius_thresholds.split(",")], 
-                                        [float(t)/1000 for t in args.radius_thresholds.split(",")] + [np.inf]))
+        radius_intervals = list(zip([0] + [t/1000 for t in thresholds], 
+                                        [t/1000 for t in thresholds] + [np.inf]))
         
         # Find the corresponding segmentation file
         seg_file = next((f for f in segmentation_files if remove_prefixes(remove_extensions(os.path.basename(f))) == image_ID), None)

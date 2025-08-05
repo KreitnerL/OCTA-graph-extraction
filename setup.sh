@@ -87,11 +87,11 @@ print_status "success" "Docker daemon is running"
 # Mode-specific prerequisites
 if [ "$SETUP_MODE" = "full_docker" ]; then
     # Check Docker Compose for full docker setup
-    if ! command -v docker-compose &> /dev/null; then
+    if ! command -v docker compose &> /dev/null; then
         print_status "error" "Docker Compose not found. Please install Docker Compose first."
         exit 1
     fi
-    print_status "success" "Docker Compose found: $(docker-compose --version | cut -d' ' -f3 | tr -d ',')"
+    print_status "success" "Docker Compose found: $(docker compose --version | cut -d' ' -f3 | tr -d ',')"
 elif [ "$SETUP_MODE" = "host_python" ]; then
     # Check/Install UV for host python setup
     if ! command -v uv &> /dev/null; then
@@ -256,7 +256,7 @@ print_status "success" "Environment configured successfully"
 print_section "4. Building Docker Images"
 
 if [ "$SETUP_MODE" = "host_python" ]; then
-    print_status "info" "Building Voreen container..."
+    print_status "info" "Building Voreen container. This can take a while..."
     if docker build -f voreen/Dockerfile -t voreen . > /tmp/build_voreen.log 2>&1; then
         print_status "success" "Voreen container built successfully"
     else
@@ -285,8 +285,8 @@ if [ "$SETUP_MODE" = "host_python" ]; then
     fi
 
 elif [ "$SETUP_MODE" = "full_docker" ]; then
-    print_status "info" "Building Voreen container..."
-    if docker-compose build voreen > /tmp/build_voreen.log 2>&1; then
+    print_status "info" "Building Voreen container. This can take a while..."
+    if docker compose build voreen > /tmp/build_voreen.log 2>&1; then
         print_status "success" "Voreen container built successfully"
     else
         print_status "error" "Failed to build Voreen container. Check /tmp/build_voreen.log"
@@ -294,7 +294,7 @@ elif [ "$SETUP_MODE" = "full_docker" ]; then
     fi
 
     print_status "info" "Building Python container..."
-    if docker-compose build octa-graph-extraction > /tmp/build_python.log 2>&1; then
+    if docker compose build octa-graph-extraction > /tmp/build_python.log 2>&1; then
         print_status "success" "Python container built successfully"
     else
         print_status "error" "Failed to build Python container. Check /tmp/build_python.log"
@@ -315,7 +315,7 @@ if [ "$SETUP_MODE" = "full_docker" ]; then
     
     mkdir -p "$TEST_TMP_DIR" "$TEST_SRC_DIR" "$TEST_OUTPUT_DIR" 2>/dev/null || true
     
-    if docker-compose up -d > /tmp/start_containers.log 2>&1; then
+    if docker compose up -d > /tmp/start_containers.log 2>&1; then
         print_status "success" "Containers started successfully"
     else
         print_status "error" "Failed to start containers. Check /tmp/start_containers.log"
@@ -367,17 +367,17 @@ if [ "$SETUP_MODE" = "host_python" ]; then
 elif [ "$SETUP_MODE" = "full_docker" ]; then
     # Test 1: Check container status
     print_status "info" "Checking container status..."
-    if docker-compose ps | grep -q "Up"; then
+    if docker compose ps | grep -q "Up"; then
         print_status "success" "Containers are running"
     else
         print_status "error" "Containers are not running properly"
-        docker-compose ps
+        docker compose ps
         exit 1
     fi
 
     # Test 2: Test Docker access from Python container
     print_status "info" "Testing Docker access from Python container..."
-    if docker-compose exec -T octa-graph-extraction docker --version &> /dev/null; then
+    if docker compose exec -T octa-graph-extraction docker --version &> /dev/null; then
         print_status "success" "Docker access from container: OK"
     else
         print_status "error" "Docker access from container: FAILED"
@@ -386,7 +386,7 @@ elif [ "$SETUP_MODE" = "full_docker" ]; then
 
     # Test 3: Test Python virtual environment and Docker SDK
     print_status "info" "Testing Python environment and Docker SDK..."
-    if docker-compose exec -T octa-graph-extraction bash -c "source /home/OCTA-graph-extraction/.venv/bin/activate && python -c 'import docker; print(\"Docker SDK available\")'" &> /dev/null; then
+    if docker compose exec -T octa-graph-extraction bash -c "source /home/OCTA-graph-extraction/.venv/bin/activate && python -c 'import docker; print(\"Docker SDK available\")'" &> /dev/null; then
         print_status "success" "Python Docker SDK: OK"
     else
         print_status "error" "Python Docker SDK: FAILED"
@@ -395,7 +395,7 @@ elif [ "$SETUP_MODE" = "full_docker" ]; then
 
     # Test 4: Test Voreen container accessibility
     print_status "info" "Testing Voreen container accessibility..."
-    if docker-compose exec -T voreen echo "Voreen accessible" &> /dev/null; then
+    if docker compose exec -T voreen echo "Voreen accessible" &> /dev/null; then
         print_status "success" "Voreen container: OK"
     else
         print_status "error" "Voreen container: FAILED"
@@ -411,7 +411,7 @@ elif [ "$SETUP_MODE" = "full_docker" ]; then
     # Create default directories for testing
     mkdir -p "$TEST_TMP_DIR" 2>/dev/null || true
     
-    if docker-compose exec -T octa-graph-extraction bash -c "ls /tmp/voreen" &> /dev/null; then
+    if docker compose exec -T octa-graph-extraction bash -c "ls /tmp/voreen" &> /dev/null; then
         print_status "success" "Volume mounts: OK"
     else
         print_status "warning" "Volume mounts accessible but directories may need to be created"
@@ -439,16 +439,16 @@ if [ "$SETUP_MODE" = "host_python" ]; then
     echo "   ./run_host.sh graph_extraction --src-dir /path/to/data --output-dir /path/to/results"
     echo ""
     echo -e "${YELLOW}📁 Source and output directories will be specified when running commands${NC}"
-    if docker-compose down &> /dev/null; then
+    if docker compose down &> /dev/null; then
         print_status "success" "Removed containers successfully"
     else
-        print_status "warning" "Failed to remove containers, but they can be stopped manually via: docker-compose down"
+        print_status "warning" "Failed to remove containers, but they can be stopped manually via: docker compose down"
     fi
     
 elif [ "$SETUP_MODE" = "full_docker" ]; then
     echo ""
     echo -e "${BLUE}📊 Container Status:${NC}"
-    docker-compose ps
+    docker compose ps
 
     echo ""
     echo -e "${GREEN}💡 Full Docker Setup Complete!${NC}"
@@ -461,10 +461,10 @@ elif [ "$SETUP_MODE" = "full_docker" ]; then
     echo -e "${YELLOW}🔧 Run analysis with automatic container management:${NC}"
     echo "   ./run_analysis.sh etdrs_pipeline --src-dir /path/to/data --output-dir /path/to/results"
     echo -e "${BLUE}Stopping containers...${NC}"
-    if docker-compose down &> /dev/null; then
+    if docker compose down &> /dev/null; then
         print_status "success" "Removed containers successfully"
     else
-        print_status "warning" "Failed to remove containers, but they can be stopped manually via: docker-compose down"
+        print_status "warning" "Failed to remove containers, but they can be stopped manually via: docker compose down"
     fi
 fi
 

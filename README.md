@@ -30,6 +30,9 @@ If you use this software in your research, please cite:
   - [🐍+🐋 Host Python Setup Usage](#-host-python-setup-usage)
   - [🐋+🐋 Full Docker Setup Usage](#-full-docker-setup-usage)
   - [ETDRS Grid Analysis](#etdrs-grid-analysis)
+- [🔎 Implementation details](#-implementation-details)
+    - [Density estimation](#density-estimation)
+    - [Graph extraction](#graph-extraction)
 - [Customizations (optional)](#customizations-optional)
   - [🐋 Manual Container Management](#-manual-container-management)
   - [📁 Path Configuration](#-path-configuration)
@@ -98,20 +101,20 @@ Use the `run_analysis.sh` script for automated container management:
 ./run_analysis.sh graph --source_dir /path/to/segmentations --output_dir /path/to/results
 
 # Generate analysis summary
-./run_analysis.sh summary --source_dir /path/to/graph_files --output_dir /path/to/results [-- --radius_thresholds r1,...,rn]
+./run_analysis.sh summary --source_dir /path/to/segmentations --output_dir /path/to/results [-- --radius_thresholds r1,...,rn]
 
 # Complete pipeline (faz segmentation + graph extraction + summary)
 ./run_analysis.sh pipeline --source_dir /path/to/data --output_dir /path/to/results [--radius_thresholds r1,...,rn]
 
 # Complete ETDRS pipeline (faz segmentation + ETDRS drid graph extraction + summary)
-./run_analysis.sh etdrs_pipeline --source_dir /path/to/data --output_dir /path/to/results
+./run_analysis.sh etdrs_pipeline --source_dir /path/to/data --output_dir /path/to/results [-- --radius_thresholds r1,...,rn]
 ```
 
 > [!IMPORTANT]
 > Please note that the predicted radii by Voreen might be subject to small additive error factor. You can manually configure the necessary correction factor for image plotting with the `--radius_correction_factor` argument. On synthetic data, we measured 1 pixel overestimation, hence this is the default. The `_edges.csv` and `_graph.json` files always show the 'raw' output without any corrections.
 
 ## ETDRS Grid Analysis
-The ETDRS (Early Treatment Diabetic Retinopathy Study) grid analysis divides the retinal image into standardized regions for quantitative analysis. The center of the grid is automatically set to the center of the FAZ (Foveal Avascular Zone).
+The ETDRS (Early Treatment Diabetic Retinopathy Study) grid analysis divides the retinal image into standardized regions for quantitative analysis. The center of the grid is automatically set to the center of mass of the FAZ (Foveal Avascular Zone).
 
 <div style="text-align:center">
     <img src="images/etdrs.png" style="max-width:900px">
@@ -126,17 +129,25 @@ You can use ETDRS analysis by adding the `--etdrs` flag for graph extraction and
 > - Vessel and FAZ segmentation files should be in separate folders with matching names
 
 
+# 🔎 Implementation details
+### Density estimation
+A core part of the generated summary is the density estimation stratified by radius. In our work, density is defined as the **number of non-zero pixels in the 2D image divided by the total number of pixels**. We assign pixels to a given radius interval by regenerating the segmentation map from the extracted graph file. While this is only an estimation of the true image, it yields good results in praxis (see generated images).
+For pixels that belong to multiple intervals (e.g. at bifurcations) we divide a pixels contribution to the number of intervals it is contained in.
+
+### Graph extraction
+To extract a graph from the segmentation mask we use the open-source program Voreen. Its graph extraction module operates on 3D data, requiring a transformation from the 2D masks. We use a simple but effective [2D to 3D algorithm](./utils/convert_2d_to_3d.py) based on [`skimage.morphology.skeletonize`](https://scikit-image.org/docs/0.25.x/api/skimage.morphology.html#skimage.morphology.skeletonize) and [`scipy.ndimage.distance_transform_edt`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.distance_transform_edt.html).
+
 # Customizations (optional)
 ## 🐋 Manual Container Management
 ```bash
 # Start containers manually (if needed)
-docker-compose up -d
+docker compose up -d
 
 # Run commands in running containers
-docker-compose exec octa-graph-extraction /home/OCTA-graph-extraction/docker/dockershell.sh faz_seg --verbose
+docker compose exec octa-graph-extraction /home/OCTA-graph-extraction/docker/dockershell.sh faz_seg --verbose
 
 # Stop containers
-docker-compose down
+docker compose down
 ```
 ## 📁 Path Configuration
 
@@ -144,9 +155,6 @@ docker-compose down
 ```bash
 # Specify paths directly when running commands
 ./run_analysis.sh faz_seg --source_dir /your/data --output_dir /your/results
-
-# or for host Python
-./run_host.sh faz_seg --source_dir /your/data --output_dir /your/results
 ```
 
 **Option 2: Environment file**
@@ -221,14 +229,14 @@ ls -la /path/to/your/output/directory
 ### Container Issues (Full Docker setup)
 ```bash
 # Check container status
-docker-compose ps
+docker compose ps
 
 # View logs
-docker-compose logs octa-graph-extraction
-docker-compose logs voreen
+docker compose logs octa-graph-extraction
+docker compose logs voreen
 
 # Force cleanup and restart
-docker-compose down --remove-orphans
+docker compose down --remove-orphans
 ./run_analysis.sh faz_seg --source_dir /your/data --output_dir /your/results
 ```
 
@@ -256,14 +264,14 @@ Add `--verbose` to see detailed processing information:
 ### Manual Container Debugging (Full Docker)
 ```bash
 # Start containers manually for debugging
-docker-compose up -d
+docker compose up -d
 
 # Shell into containers
-docker-compose exec octa-graph-extraction bash
-docker-compose exec voreen bash
+docker compose exec octa-graph-extraction bash
+docker compose exec voreen bash
 
 # Stop when done
-docker-compose down
+docker compose down
 ```
 
 

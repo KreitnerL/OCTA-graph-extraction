@@ -69,17 +69,17 @@ if __name__ == "__main__":
     # Check if we're running in Docker (DooD setup)
     running_in_docker = os.path.exists("/.dockerenv")
     
-    # Check if a voreen container from docker-compose is already running
+    # Check if a voreen container from docker compose is already running
     docker_compose_container = None
     client = docker.from_env()
     for container in client.containers.list(filters={"status": "running"}):
-        if container.name == "voreen-container":  # docker-compose container name
+        if container.name == "voreen-container":  # docker compose container name
             docker_compose_container = container
             container_name = container.name
-            print(f"Found existing docker-compose Voreen container: {container_name}")
+            print(f"Found existing docker compose Voreen container: {container_name}")
             break
     
-    # Start docker container if not running in docker and no docker-compose container found
+    # Start docker container if not running in docker and no docker compose container found
     if not running_in_docker and docker_compose_container is None:
         # Check if container of this image is running
         client = docker.from_env()
