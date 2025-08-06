@@ -251,6 +251,7 @@ if __name__ == "__main__":
         threads = min(cpus-1,len(ves_seg_files)) if cpus>1 else 1
     else:
         threads=args.threads
+    print(f"Using {threads} threads for graph feature extraction.")
 
     try:
         if threads>1:
