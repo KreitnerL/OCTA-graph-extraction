@@ -39,6 +39,12 @@ if [ -f "/.dockerenv" ]; then
     TEMP_DIR=$HOST_TMP_DIR
     OUTPUT_DIR=$HOST_OUTPUT_DIR
     SRC_DIR=$HOST_SRC_DIR
+
+    # Store the environment variables in a .env file for the Voreen container
+    echo "HOST_TMP_DIR=$HOST_TMP_DIR" > /tmp/.env
+    echo "HOST_OUTPUT_DIR=$HOST_OUTPUT_DIR" >> /tmp/.env
+    echo "HOST_SRC_DIR=$HOST_SRC_DIR" >> /tmp/.env
+    source /tmp/.env
 else
     echo "[Info] Running on host system"
     # Use the mounted paths directly
@@ -59,13 +65,13 @@ then
 elif [ "$mode" = "pipeline" ]
 then
     python /home/OCTA-graph-extraction/faz_segmentation.py --source_files "$SRC_DIR/**/*.*" --output_dir "$OUTPUT_DIR/faz" && \
-    python /home/OCTA-graph-extraction/graph_feature_extractor.py --image_files "$SRC_DIR/**/*.*" --output_dir "$OUTPUT_DIR" --tmp_dir "$TEMP_DIR" && \
-    python /home/OCTA-graph-extraction/generate_analysis_summary.py --source_dir "$OUTPUT_DIR" --output_dir "$OUTPUT_DIR" --faz_files "$OUTPUT_DIR/**/faz_*.png"  --segmentation_dir "$SRC_DIR" "$@"
+    python /home/OCTA-graph-extraction/graph_feature_extractor.py --image_files "$SRC_DIR/**/*.*" --output_dir "$OUTPUT_DIR/graphs" --tmp_dir "$TEMP_DIR" && \
+    python /home/OCTA-graph-extraction/generate_analysis_summary.py --source_dir "$OUTPUT_DIR/graphs" --output_dir "$OUTPUT_DIR" --faz_files "$OUTPUT_DIR/**/faz_*.png"  --segmentation_dir "$SRC_DIR" "$@"
 elif  [ "$mode" = "etdrs_pipeline" ]
 then
     python /home/OCTA-graph-extraction/faz_segmentation.py --source_files "$SRC_DIR/**/*.*" --output_dir "$OUTPUT_DIR/faz" && \
-    python /home/OCTA-graph-extraction/graph_feature_extractor.py --image_files "$SRC_DIR/**/*.*" --output_dir "$OUTPUT_DIR" --tmp_dir "$TEMP_DIR" --etdrs --faz_dir "$OUTPUT_DIR/faz" && \
-    python /home/OCTA-graph-extraction/generate_analysis_summary.py --source_dir "$OUTPUT_DIR" --output_dir "$OUTPUT_DIR" --faz_files "$OUTPUT_DIR/**/faz_*.png" --segmentation_dir "$SRC_DIR" --etdrs "$@"
+    python /home/OCTA-graph-extraction/graph_feature_extractor.py --image_files "$SRC_DIR/**/*.*" --output_dir "$OUTPUT_DIR/graphs" --tmp_dir "$TEMP_DIR" --etdrs --faz_dir "$OUTPUT_DIR/faz" && \
+    python /home/OCTA-graph-extraction/generate_analysis_summary.py --source_dir "$OUTPUT_DIR/graphs" --output_dir "$OUTPUT_DIR" --faz_files "$OUTPUT_DIR/**/faz_*.png" --segmentation_dir "$SRC_DIR" --etdrs "$@"
 else
     echo "Error: Mode '$mode' does not exist."
     echo ""

@@ -104,7 +104,7 @@ Use the `run_analysis.sh` script for automated container management:
 ./run_analysis.sh summary --source_dir /path/to/segmentations --output_dir /path/to/results [-- --radius_thresholds r1,...,rn]
 
 # Complete pipeline (faz segmentation + graph extraction + summary)
-./run_analysis.sh pipeline --source_dir /path/to/data --output_dir /path/to/results [--radius_thresholds r1,...,rn]
+./run_analysis.sh pipeline --source_dir /path/to/data --output_dir /path/to/results [-- --radius_thresholds r1,...,rn]
 
 # Complete ETDRS pipeline (faz segmentation + ETDRS drid graph extraction + summary)
 ./run_analysis.sh etdrs_pipeline --source_dir /path/to/data --output_dir /path/to/results [-- --radius_thresholds r1,...,rn]

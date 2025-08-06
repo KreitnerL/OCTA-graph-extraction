@@ -99,7 +99,7 @@ if __name__ == "__main__":
                 volumes={
                     args.tmp_dir: {'bind': "/var/tmp", 'mode': 'rw'},
                     source_dir: {'bind': "/var/src", 'mode': 'ro'},
-                    args.output_dir: {'bind': "/var/results", 'mode': 'rw'}
+                    args.output_dir: {'bind': DOCKER_WORK_DIR, 'mode': 'rw'}
                 },
             )
             container_name = container.name
@@ -125,12 +125,16 @@ if __name__ == "__main__":
                 volumes={
                     args.tmp_dir: {'bind': "/var/tmp", 'mode': 'rw'},
                     source_dir: {'bind': "/var/src", 'mode': 'ro'},
-                    args.output_dir: {'bind': "/var/results", 'mode': 'rw'}
+                    args.output_dir: {'bind': DOCKER_WORK_DIR, 'mode': 'rw'}
                 },
             )
             container_name = container.name
             # Ensure Voreen can write to its internal data directory
             container.exec_run(user="root", cmd=f"chmod 777 -R {DOCKER_VOREEN_BIN}/../data")
+        load_dotenv("/tmp/.env")
+        subfolder = "/" + str(args.output_dir).removeprefix(os.getenv("HOST_OUTPUT_DIR")).removeprefix("/")
+        print(f"Running in Docker container with subfolder {subfolder}.")
+        DOCKER_WORK_DIR = DOCKER_WORK_DIR + subfolder
 
     if args.etdrs:
         assert bool(args.faz_dir)
