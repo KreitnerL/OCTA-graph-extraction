@@ -78,6 +78,10 @@ source .venv/bin/activate
 
 **📋 Basic Commands:**
 ```bash
+# Complete pipeline (faz segmentation + graph extraction + summary)
+python pipeline.py --source_dir /path/to/segmentations --output_dir /path/to/output  [--radius_thresholds r1,...,rn]
+
+# --- Perform steps separately: ---
 # FAZ segmentation
 python faz_segmentation.py --source_files /path/to/images --output_dir /path/to/output
 
@@ -94,6 +98,10 @@ Use the `run_analysis.sh` script for automated container management:
 
 **📋 Basic Commands:**
 ```bash
+# Complete pipeline (faz segmentation + graph extraction + summary)
+./run_analysis.sh pipeline --source_dir /path/to/data --output_dir /path/to/results [-- --radius_thresholds r1,...,rn]
+
+# --- Perform steps separately: ---
 # FAZ segmentation (auto-starts containers, runs command, cleans up)
 ./run_analysis.sh faz_seg --source_dir /path/to/images --output_dir /path/to/output
 
@@ -102,12 +110,6 @@ Use the `run_analysis.sh` script for automated container management:
 
 # Generate analysis summary
 ./run_analysis.sh summary --source_dir /path/to/segmentations --output_dir /path/to/results [-- --radius_thresholds r1,...,rn]
-
-# Complete pipeline (faz segmentation + graph extraction + summary)
-./run_analysis.sh pipeline --source_dir /path/to/data --output_dir /path/to/results [-- --radius_thresholds r1,...,rn]
-
-# Complete ETDRS pipeline (faz segmentation + ETDRS drid graph extraction + summary)
-./run_analysis.sh etdrs_pipeline --source_dir /path/to/data --output_dir /path/to/results [-- --radius_thresholds r1,...,rn]
 ```
 
 > [!IMPORTANT]

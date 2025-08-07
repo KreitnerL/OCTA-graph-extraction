@@ -127,61 +127,54 @@ def process_file_pair(args_tuple):
     
     return dd, new_entry, area
 
-if __name__ == "__main__":
-    import argparse
-    
-    parser = argparse.ArgumentParser(description='Generate analysis summary from OCTA graph data.')
-    parser.add_argument('--source_dir', type=str, help="Absolute path to the folder graph features", required=True)
-    parser.add_argument('--segmentation_dir', type=str, help="Absolute path to the segmentation maps", required=True)
-
-    parser.add_argument('--output_dir', type=str, help="Absolute path to the output folder. If none is given, save in source folder.")
-    parser.add_argument('--faz_files', type=str, help="Absolute path to the faz segmentation files. Required for etdrs analysis.")
-    
-    parser.add_argument('--radius_thresholds', type=str, default="0,inf", help="Comma separated list of thresholds for vessel stratification [um].")
-    parser.add_argument('--mm', type=float, default=3.0, help="Height of the segmentation volume in mm. Default is 3 mm")
-    parser.add_argument('--etdrs', action="store_true", help="If set, use ETDRS grid stratification")
-    parser.add_argument('--radius_correction_factor', type=float, default=-1.0, 
-                        help="Additive correction factor for the radius estimation. Default is -1.0 to correct for Voreen's overestimation by 1 pixel measured on synthetic data.")
-    parser.add_argument('--center_radius', type=float, default=3/6, help="Radius of ETDRS center radius in mm")
-    parser.add_argument('--inner_radius', type=float, default=3/2.4, help="Radius of ETDRS center radius in mm")
-    parser.add_argument('--threads', type=int, default=max(1, cpu_count()-1), help="Number of threads to use for parallel processing. Default is all available cores minus one.")
-    args = parser.parse_args()
-
-    # Find and validate input files
-    edge_files = natsorted(glob.glob(os.path.join(args.source_dir, "**/*_edges.csv"), recursive=True))
-    graph_files = natsorted(glob.glob(os.path.join(args.source_dir, "**/*_graph.json"), recursive=True))
-    segmentation_files = natsorted(glob.glob(os.path.join(args.segmentation_dir, "**/*.png"), recursive=True))
-    assert edge_files, f"No '_edges.csv' files found in folder {args.source_dir}!"
-    assert graph_files, f"No '_graph.json' files found in folder {args.source_dir}!"
+def generate_anylsis_file(
+        source_dir: str,
+        segmentation_dir: str,
+        output_dir: str = None,
+        faz_files: str = None,
+        radius_thresholds: str = "0,inf",
+        mm: float = 3.0,
+        etdrs: bool = False,
+        center_radius: float = 3/6,
+        inner_radius: float = 3/2.4,
+        radius_correction_factor: float = -1.0,
+        threads: int = cpu_count() - 1,
+        **kwargs
+):
+        # Find and validate input files
+    edge_files = natsorted(glob.glob(os.path.join(source_dir, "**/*_edges.csv"), recursive=True))
+    graph_files = natsorted(glob.glob(os.path.join(source_dir, "**/*_graph.json"), recursive=True))
+    segmentation_files = natsorted(glob.glob(os.path.join(segmentation_dir, "**/*.png"), recursive=True))
+    assert edge_files, f"No '_edges.csv' files found in folder {source_dir}!"
+    assert graph_files, f"No '_graph.json' files found in folder {source_dir}!"
 
     # Process FAZ files if provided
     faz_map = {}
-    if args.faz_files:
-        faz_files = natsorted(glob.glob(args.faz_files, recursive=True))
+    if faz_files:
+        faz_files = natsorted(glob.glob(faz_files, recursive=True))
         if not faz_files:
-            print(f"No files found in faz folder {args.faz_files}!")
+            print(f"No files found in faz folder {faz_files}!")
         
         for faz_file in tqdm(faz_files, desc="Processing FAZ files"):
             faz = np.array(Image.open(faz_file))
             image_area = faz.shape[0] * faz.shape[1]
-            faz_area = (faz/255).sum() / image_area * args.mm**2
+            faz_area = (faz/255).sum() / image_area * mm**2
             faz_map[code_name(faz_file)] = faz_area
 
     # Setup area masks and factors
-    if args.etdrs:
+    if etdrs:
         assert faz_map, "FAZ files are required for ETDRS analysis!"
         center_mask, q1_mask, q2_mask, q3_mask, q4_mask = get_ETDRS_grid_masks(
             np.ones_like(faz), 
-            center_radius=args.center_radius/args.mm*faz.shape[0], 
-            inner_radius=args.inner_radius/args.mm*faz.shape[0]
+            center_radius=center_radius/mm*faz.shape[0], 
+            inner_radius=inner_radius/mm*faz.shape[0]
         )
         AREA_FACTOR_MAP = {"C0": center_mask.sum(), "S1": q1_mask.sum(), "N1": q2_mask.sum(), "I1": q3_mask.sum(), "T1": q4_mask.sum()}
     else:
         AREA_FACTOR_MAP = {"": np.ones_like(faz).sum()}
 
     
-    SCALING_FACTOR = args.mm * 1000 / faz.shape[0]
-    thresholds = [float(t) for t in args.radius_thresholds.split(",")] if args.radius_thresholds else []
+    thresholds = [float(t) for t in radius_thresholds.split(",")] if radius_thresholds else []
     THRESHOLDS = [None, *thresholds, None]
 
     # Prepare arguments for parallel processing
@@ -189,15 +182,15 @@ if __name__ == "__main__":
     for data_file, graph_file in zip(edge_files, graph_files):
         args_tuple = (
             data_file, graph_file, segmentation_files, faz_map, AREA_FACTOR_MAP,
-            THRESHOLDS, thresholds, args.etdrs, args.mm, args.radius_correction_factor, faz.shape
+            THRESHOLDS, thresholds, etdrs, mm, radius_correction_factor, faz.shape
         )
         process_args.append(args_tuple)
 
     # Process files in parallel
     d = []
     
-    print(f"Using {args.threads} threads for processing graph features.")
-    with Pool(args.threads) as pool:
+    print(f"Using {threads} threads for processing graph features.")
+    with Pool(threads) as pool:
         results = list(tqdm(pool.imap(process_file_pair, process_args), total=len(process_args), desc="Processing files"))
     
     # Reconstruct the data structure maintaining original order and logic
@@ -218,6 +211,31 @@ if __name__ == "__main__":
     # Save results
     df = pd.DataFrame(d)
     df = df.sort_values(by="Image_ID", key=natsort_keygen())
-    output_dir = args.output_dir or args.source_dir
-    output_name = "density_measurements_etdrs.csv" if args.etdrs else "density_measurements_full.csv"
+    output_dir = output_dir or source_dir
+    output_name = "density_measurements_etdrs.csv" if etdrs else "density_measurements_full.csv"
     df.to_csv(os.path.join(output_dir, output_name), index=False, sep=",")
+    print(f"Analysis summary saved to {os.path.join(output_dir, output_name)}")
+
+
+if __name__ == "__main__":
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Generate analysis summary from OCTA graph data.')
+    parser.add_argument('--source_dir', type=str, help="Absolute path to the folder graph features", required=True)
+    parser.add_argument('--segmentation_dir', type=str, help="Absolute path to the segmentation maps", required=True)
+
+    parser.add_argument('--output_dir', type=str, help="Absolute path to the output folder. If none is given, save in source folder.")
+    parser.add_argument('--faz_files', type=str, help="Absolute path to the faz segmentation files. Required for etdrs analysis.")
+    
+    parser.add_argument('--radius_thresholds', type=str, default="0,inf", help="Comma separated list of thresholds for vessel stratification [um].")
+    parser.add_argument('--mm', type=float, default=3.0, help="Height of the segmentation volume in mm. Default is 3 mm")
+    parser.add_argument('--etdrs', action="store_true", help="If set, use ETDRS grid stratification")
+    parser.add_argument('--radius_correction_factor', type=float, default=-1.0, 
+                        help="Additive correction factor for the radius estimation. Default is -1.0 to correct for Voreen's overestimation by 1 pixel measured on synthetic data.")
+    parser.add_argument('--center_radius', type=float, default=3/6, help="Radius of ETDRS center radius in mm")
+    parser.add_argument('--inner_radius', type=float, default=3/2.4, help="Radius of ETDRS center radius in mm")
+    parser.add_argument('--threads', type=int, default=max(1, cpu_count()-1), help="Number of threads to use for parallel processing. Default is all available cores minus one.")
+    args = parser.parse_args()
+    kwargs = vars(args)
+
+    generate_anylsis_file(**kwargs)

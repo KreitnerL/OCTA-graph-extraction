@@ -33,7 +33,6 @@ show_help() {
     echo -e "${CYAN}Commands:${NC}"
     echo "  faz_seg                Run FAZ segmentation"
     echo "  graph                  Run graph extraction"
-    echo "  etdrs_pipeline         Run complete ETDRS pipeline"
     echo "  summary                Generate analysis summary"
     echo "  pipeline               Run complete pipeline"
     echo ""
@@ -45,7 +44,7 @@ show_help() {
     echo ""
     echo -e "${CYAN}Examples:${NC}"
     echo "  $0 faz_seg --source_dir /path/to/images --output_dir /path/to/output"
-    echo "  $0 etdrs_pipeline --source_dir /data/segmentations --output_dir /results"
+    echo "  $0 pipeline --source_dir /data/segmentations --output_dir /results"
     echo "  $0 graph -- --verbose --threads 8"
     echo ""
     echo -e "${YELLOW}Note: Arguments after '--' are passed directly to the command${NC}"
@@ -153,7 +152,7 @@ case "$COMMAND" in
         # Use --no-deps to avoid starting dependency containers
         docker compose --env-file "$ENV_FILE" up -d --no-deps octa-graph-extraction
         ;;
-    graph|etdrs_pipeline|pipeline)
+    graph|pipeline)
         echo -e "${BLUE}Starting all containers...${NC}"
         docker compose --env-file "$ENV_FILE" up -d
         ;;

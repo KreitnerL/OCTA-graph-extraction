@@ -1,16 +1,19 @@
-import numpy as np
-from PIL import Image
-from skimage.morphology import skeletonize
-from natsort import natsorted
-import glob
-from tqdm import tqdm
-import os
-from multiprocessing import cpu_count
 import concurrent.futures
-import cv2
+import glob
+import os
+from functools import partial
 from math import inf
+from multiprocessing import cpu_count
+
+import cv2
 import nibabel as nib
+import numpy as np
+from natsort import natsorted
+from PIL import Image
 from scipy import ndimage
+from skimage.morphology import skeletonize
+from tqdm import tqdm
+
 
 def keep_largest_connected_component(image: np.ndarray) -> np.ndarray:
     """
@@ -69,53 +72,35 @@ def get_faz_mask(img_orig: np.ndarray, BORDER=200) -> np.ndarray:
     faz_final = keep_largest_connected_component(img_inverted)
     return faz_final
 
-
-if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser(description='')
-    parser.add_argument('--source_files', help="Absolute path to the folder containing the DVC segmentation maps", type=str, required=True)
-    parser.add_argument('--output_dir', help="Absolute path to the folder where the faz segmentation files wil be stored.", type=str, default=None)
-    parser.add_argument('--threads', help="Number of parallel threads. By default all available threads but one are used.", type=int, default=-1)
-    parser.add_argument('--num_samples', help="Maximum number of samples to process.", type=int, default=inf)
-    args = parser.parse_args()
-
-    data_files: list[str] = natsorted(glob.glob(args.source_files, recursive=True))
-    source_folder = os.path.dirname(os.path.commonprefix(data_files))
-    output_dir: str = args.output_dir
-
-    def task(path: str):
-        name = path.split("/")[-1]
-        if path.endswith(".nii.gz"):
-            nifti: nib.Nifti1Image = nib.load(path)
-            image_3d = nifti.get_fdata()
-            img_orig = np.max(image_3d, axis=-1)
-            path = path.replace(".nii.gz", ".png")
-        else:
-            img_orig = np.array(Image.open(path))
-        faz_final = get_faz_mask_robust(img_orig)
-
-        img_and_faz = np.zeros_like(img_orig)
-        img_and_faz[(faz_final==1) & (img_and_faz==0)]=255
-        out_path = path.replace(source_folder, output_dir).replace(name, "faz_"+name)
-        out_dir = "/".join(out_path.split("/")[:-1])
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
-        Image.fromarray(img_and_faz.astype(np.uint8)).save(out_path)
-
-    if args.threads == -1:
-        # If no argument is provided, use all available threads but one
-        cpus = cpu_count()
-        threads = min(cpus-1 if cpus>1 else 1,args.num_samples)
+def task(path: str, source_folder: str, output_dir: str):
+    name = path.split("/")[-1]
+    if path.endswith(".nii.gz"):
+        nifti: nib.Nifti1Image = nib.load(path)
+        image_3d = nifti.get_fdata()
+        img_orig = np.max(image_3d, axis=-1)
+        path = path.replace(".nii.gz", ".png")
     else:
-        threads=args.threads
+        img_orig = np.array(Image.open(path))
+    faz_final = get_faz_mask_robust(img_orig)
+
+    img_and_faz = np.zeros_like(img_orig)
+    img_and_faz[(faz_final==1) & (img_and_faz==0)]=255
+    out_path = path.replace(source_folder, output_dir).replace(name, "faz_"+name)
+    out_dir = "/".join(out_path.split("/")[:-1])
+    
+    os.makedirs(out_dir, exist_ok=True)
+    Image.fromarray(img_and_faz.astype(np.uint8)).save(out_path)
+
+def perform_faz_segmentation(source_files: str, output_dir: str, threads: int = -1, num_samples: int = inf):
+    data_files: list[str] = natsorted(glob.glob(source_files, recursive=True))
+    source_folder = os.path.dirname(os.path.commonprefix(data_files))
 
     if threads>1:
         # Multi processing
-        with tqdm(total=min(args.num_samples, len(data_files)), desc="Segmenting FAZ...") as pbar:
+        with tqdm(total=min(num_samples, len(data_files)), desc="Segmenting FAZ...") as pbar:
             with concurrent.futures.ProcessPoolExecutor(max_workers=threads) as executor:
-                future_dict = {executor.submit(task, data_files[i]): i for i in range(len(data_files))}
-                for future in concurrent.futures.as_completed(future_dict):
-                    i = future_dict[future]
+                future_dict = {executor.submit(partial(task, source_folder=source_folder, output_dir=output_dir), data_files[i]): i for i in range(len(data_files))}
+                for _ in concurrent.futures.as_completed(future_dict):
                     pbar.update(1)
     else:
         if data_files[0].endswith(".nii.gz"):
@@ -123,4 +108,13 @@ if __name__ == "__main__":
         for path in tqdm(data_files, desc="Segmenting FAZ..."):
             task(path)
 
-    
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description='')
+    parser.add_argument('--source_files', help="Absolute path to the folder containing the DVC segmentation maps", type=str, required=True)
+    parser.add_argument('--output_dir', help="Absolute path to the folder where the faz segmentation files wil be stored.", type=str, default=None)
+    parser.add_argument('--threads', help="Number of parallel threads. By default all available threads but one are used.", type=int, default=max(1,cpu_count()-1))
+    parser.add_argument('--num_samples', help="Maximum number of samples to process.", type=int, default=inf)
+    args = parser.parse_args()
+
+    perform_faz_segmentation(args.source_files, args.output_dir, threads=args.threads, num_samples=args.num_samples)

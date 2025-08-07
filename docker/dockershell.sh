@@ -64,14 +64,7 @@ then
     python /home/OCTA-graph-extraction/generate_analysis_summary.py --source_dir "$OUTPUT_DIR" --output_dir "$OUTPUT_DIR" --faz_files "$OUTPUT_DIR/**/faz_*.png" --segmentation_dir "$SRC_DIR" "$@"
 elif [ "$mode" = "pipeline" ]
 then
-    python /home/OCTA-graph-extraction/faz_segmentation.py --source_files "$SRC_DIR/**/*.*" --output_dir "$OUTPUT_DIR/faz" && \
-    python /home/OCTA-graph-extraction/graph_feature_extractor.py --image_files "$SRC_DIR/**/*.*" --output_dir "$OUTPUT_DIR/graphs" --tmp_dir "$TEMP_DIR" && \
-    python /home/OCTA-graph-extraction/generate_analysis_summary.py --source_dir "$OUTPUT_DIR/graphs" --output_dir "$OUTPUT_DIR" --faz_files "$OUTPUT_DIR/**/faz_*.png"  --segmentation_dir "$SRC_DIR" "$@"
-elif  [ "$mode" = "etdrs_pipeline" ]
-then
-    python /home/OCTA-graph-extraction/faz_segmentation.py --source_files "$SRC_DIR/**/*.*" --output_dir "$OUTPUT_DIR/faz" && \
-    python /home/OCTA-graph-extraction/graph_feature_extractor.py --image_files "$SRC_DIR/**/*.*" --output_dir "$OUTPUT_DIR/graphs" --tmp_dir "$TEMP_DIR" --etdrs --faz_dir "$OUTPUT_DIR/faz" && \
-    python /home/OCTA-graph-extraction/generate_analysis_summary.py --source_dir "$OUTPUT_DIR/graphs" --output_dir "$OUTPUT_DIR" --faz_files "$OUTPUT_DIR/**/faz_*.png" --segmentation_dir "$SRC_DIR" --etdrs "$@"
+    python /home/OCTA-graph-extraction/pipeline.py --source_dir "$SRC_DIR" --output_dir "$OUTPUT_DIR" --tmp_dir "$TEMP_DIR" "$@"
 else
     echo "Error: Mode '$mode' does not exist."
     echo ""
