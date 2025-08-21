@@ -6,7 +6,6 @@ import pathlib
 from functools import partial
 from multiprocessing import cpu_count
 
-import docker
 import nibabel as nib
 import numpy as np
 from dotenv import load_dotenv
@@ -14,6 +13,8 @@ from natsort import natsorted
 from PIL import Image
 from scipy import ndimage
 from tqdm import tqdm
+
+import docker
 from utils.convert_2d_to_3d import convert_2d_to_3d
 from utils.ETDRS_grid import get_ETDRS_grid_indices
 from utils.voreen_vesselgraphextraction import extract_vessel_graph
@@ -162,7 +163,7 @@ def etdrs_graph(
 def perform_graph_feature_extraction(
         tmp_dir: str,
         output_dir: str,
-        seg_files: str,
+        image_files: str,
         faz_dir: str = None,
         thresholds: str = None,
         voreen_image_name: str="voreen",
@@ -183,8 +184,8 @@ def perform_graph_feature_extraction(
     if os.path.exists(tmp_dir):
         os.system(f"rm -rf '{os.path.join(tmp_dir, "*")}'")
 
-    ves_seg_files = [p for p in natsorted(glob.glob(seg_files, recursive=True))]
-    assert len(ves_seg_files)>0, f"Found no matching vessel segmentation files for path {seg_files}!"
+    ves_seg_files = [p for p in natsorted(glob.glob(image_files, recursive=True))]
+    assert len(ves_seg_files)>0, f"Found no matching vessel segmentation files for path {image_files}!"
     source_dir = os.path.dirname(os.path.commonprefix(ves_seg_files))
 
     color_thresholds = [float(t) for t in thresholds.split(",")] if thresholds is not None else None

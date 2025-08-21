@@ -5,6 +5,7 @@ import pathlib
 from multiprocessing import cpu_count
 
 from dotenv import load_dotenv
+
 from faz_segmentation import perform_faz_segmentation
 from generate_analysis_summary import generate_anylsis_file
 from graph_feature_extractor import perform_graph_feature_extraction
@@ -51,7 +52,7 @@ perform_faz_segmentation(
 perform_graph_feature_extraction(
     tmp_dir=args.tmp_dir,
     output_dir=args.output_dir+"/graphs",
-    seg_files=source_files,
+    image_files=source_files,
     faz_dir=args.output_dir+"/faz",
     thresholds=args.radius_thresholds,
     voreen_image_name=args.voreen_image_name,
