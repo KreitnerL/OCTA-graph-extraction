@@ -217,6 +217,7 @@ def perform_graph_feature_extraction(
         if container_name is None:
             if verbose:
                 print(f"No running container for image {voreen_image_name} found. Starting a new container...")
+            HOST_OUTPUT_DIR = output_dir # .env file shoudl only be used in DooD setup
             container = client.containers.run(
                 image=voreen_image_name,
                 detach=True,

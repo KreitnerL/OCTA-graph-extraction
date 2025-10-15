@@ -1,13 +1,15 @@
 import os
-import h5py
-import numpy as np
-import docker
-import nibabel as nib
-import pandas as pd
 import uuid
 from typing import Literal
-from utils.visualizer import generate_image_from_graph_json
+
+import h5py
+import nibabel as nib
+import numpy as np
+import pandas as pd
 from PIL import Image
+
+import docker
+from utils.visualizer import generate_image_from_graph_json
 
 DOCKER_TMP_DIR = '/var/tmp'
 DOCKER_CACHE_DIR = '/var/cache'
@@ -176,7 +178,9 @@ def extract_vessel_graph(
                 color_thresholds=color_thresholds,
                 radius_correction_factor=radius_correction_factor
             )
-            segmentation_2d_mask = img_nii.get_fdata().max(axis=2).astype(np.uint8) // 255
+            segmentation_2d_mask = img_nii.get_fdata().max(axis=2).astype(np.uint8)
+            if segmentation_2d_mask.max() > 1:
+                segmentation_2d_mask = segmentation_2d_mask // 255
             Image.fromarray(img * segmentation_2d_mask[...,np.newaxis]).save(os.path.join(outdir, f'{image_name}_graph.png'))
 
         return ret
