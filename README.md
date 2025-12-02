@@ -43,6 +43,7 @@ If you use this software in your research, please cite:
     - [Build Issues](#build-issues)
     - [Permission Issues](#permission-issues)
   - [Runtime Issues](#runtime-issues)
+    - [IO Issues](#io-issues)
     - [Path Problems](#path-problems)
     - [Container Issues (Full Docker setup)](#container-issues-full-docker-setup)
     - [Python Environment Issues (Host Python setup)](#python-environment-issues-host-python-setup)
@@ -216,6 +217,12 @@ sudo usermod -aG docker $USER
 ```
 
 ## Runtime Issues
+
+### IO Issues
+If you experience errors similar to `IOException: Could not create output file`, try to adjust the permissions of the output folder. E.g.,
+```sh
+chmod -R 777 /path/to/output_dir
+```
 
 ### Path Problems
 The automated runners handle most path issues, but if you encounter problems:

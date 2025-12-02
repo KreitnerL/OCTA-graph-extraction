@@ -42,12 +42,14 @@ parser.add_argument('--threads', help="Number of parallel threads. By default al
 args = parser.parse_args()
 
 source_files = args.source_dir + "/*.png"
+output_dir = args.output_dir.removesuffix("/") if args.output_dir is not None else args.source_dir.removesuffix("/")
 
-perform_faz_segmentation(
-    source_files=source_files,
-    output_dir=args.output_dir + "/faz",
-    threads=args.threads
-)
+if args.etdrs:
+    perform_faz_segmentation(
+        source_files=source_files,
+        output_dir=args.output_dir + "/faz",
+        threads=args.threads
+    )
 
 perform_graph_feature_extraction(
     tmp_dir=args.tmp_dir,

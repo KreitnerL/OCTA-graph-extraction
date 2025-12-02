@@ -106,7 +106,7 @@ def perform_faz_segmentation(source_files: str, output_dir: str, threads: int = 
         if data_files[0].endswith(".nii.gz"):
             print("Warning: 3D volumes are not recommended for FAZ segmentation! For optimal results use 2D segmentations instead!")
         for path in tqdm(data_files, desc="Segmenting FAZ..."):
-            task(path)
+            task(path, source_folder=source_folder, output_dir=output_dir)
 
 if __name__ == "__main__":
     import argparse
