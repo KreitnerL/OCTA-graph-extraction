@@ -33,7 +33,7 @@ show_help() {
     echo -e "${CYAN}Commands:${NC}"
     echo "  faz_seg                Run FAZ segmentation"
     echo "  graph                  Run graph extraction"
-    echo "  summary                Generate analysis summary"
+    echo "  summary                Generate analysis summary (segmentations → --source_dir, output root → --output_dir)"
     echo "  pipeline               Run complete pipeline"
     echo ""
     echo -e "${CYAN}Options:${NC}"

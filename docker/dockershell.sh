@@ -30,24 +30,21 @@ source /home/OCTA-graph-extraction/.venv/bin/activate
 # Check if we're running in Docker (DooD setup)
 if [ -f "/.dockerenv" ]; then
     echo "[Info] Running in Docker container (DooD mode)"
-    # In DooD mode, use host paths that are mounted as volumes
-    HOST_TMP_DIR=${HOST_TMP_DIR:-/tmp/voreen}
-    HOST_OUTPUT_DIR=${HOST_OUTPUT_DIR:-/data/output}
-    HOST_SRC_DIR=${HOST_SRC_DIR:-/data/src}
-    
-    # Map container paths to host paths for volume mounting with Voreen container
-    TEMP_DIR=$HOST_TMP_DIR
-    OUTPUT_DIR=$HOST_OUTPUT_DIR
-    SRC_DIR=$HOST_SRC_DIR
+    # Host paths (from compose .env) — for Voreen volume binds and user-facing messages only
+    export HOST_TMP_DIR="${HOST_TMP_DIR:-/tmp/voreen}"
+    export HOST_OUTPUT_DIR="${HOST_OUTPUT_DIR:-}"
+    export HOST_SRC_DIR="${HOST_SRC_DIR:-}"
+    # Container mount paths — Python must read/write here inside this container
+    OUTPUT_DIR=/data/output
+    SRC_DIR=/data/src
+    TEMP_DIR=/tmp/voreen
 
-    # Store the environment variables in a .env file for the Voreen container
+    # Voreen child container needs host paths on the Docker host filesystem
     echo "HOST_TMP_DIR=$HOST_TMP_DIR" > /tmp/.env
     echo "HOST_OUTPUT_DIR=$HOST_OUTPUT_DIR" >> /tmp/.env
     echo "HOST_SRC_DIR=$HOST_SRC_DIR" >> /tmp/.env
-    source /tmp/.env
 else
     echo "[Info] Running on host system"
-    # Use the mounted paths directly
     TEMP_DIR=/tmp/voreen
     OUTPUT_DIR=/data/output
     SRC_DIR=/data/src
@@ -61,7 +58,12 @@ then
     python /home/OCTA-graph-extraction/graph_feature_extractor.py --image_files "$SRC_DIR/**/*.*" --output_dir "$OUTPUT_DIR" --tmp_dir "$TEMP_DIR" "$@"
 elif  [ "$mode" = "summary" ]
 then
-    python /home/OCTA-graph-extraction/generate_analysis_summary.py --source_dir "$OUTPUT_DIR" --output_dir "$OUTPUT_DIR" --faz_files "$OUTPUT_DIR/**/faz_*.png" --segmentation_dir "$SRC_DIR" "$@"
+    python /home/OCTA-graph-extraction/generate_analysis_summary.py \
+        --source_dir "$OUTPUT_DIR/graphs" \
+        --output_dir "$OUTPUT_DIR" \
+        --faz_files "$OUTPUT_DIR/faz/faz_*.png" \
+        --segmentation_dir "$SRC_DIR" \
+        "$@"
 elif [ "$mode" = "pipeline" ]
 then
     python /home/OCTA-graph-extraction/pipeline.py --source_dir "$SRC_DIR" --output_dir "$OUTPUT_DIR" --tmp_dir "$TEMP_DIR" "$@"

@@ -2,6 +2,9 @@ ARG NUMBER_OF_PROCESSES
 
 FROM astral/uv:0.7-python3.13-bookworm-slim
 
+ARG GIT_COMMIT=unknown
+LABEL org.opencontainers.image.revision=$GIT_COMMIT
+
 # Install Docker CLI (needed for Docker outside of Docker)
 RUN apt-get update && apt-get install -y docker.io ffmpeg libsm6 libxext6 && rm -rf /var/lib/apt/lists/*
 

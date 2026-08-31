@@ -41,6 +41,10 @@ services:
       # Set environment variables for the application
       - DOCKER_HOST=unix:///var/run/docker.sock
       - MPLCONFIGDIR=/tmp/matplotlib  # Fix matplotlib config directory
+      - HOST_OUTPUT_DIR=${HOST_OUTPUT_DIR:-}
+      - HOST_SRC_DIR=${HOST_SRC_DIR:-}
+      - CONTAINER_OUTPUT_DIR=/data/output
+      - CONTAINER_SRC_DIR=/data/src
     depends_on:
       - voreen
     stdin_open: true

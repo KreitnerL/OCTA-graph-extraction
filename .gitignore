@@ -6,5 +6,5 @@ voreen/tmpdir
 **/__pycache__
 **/debug*
 wandb/
-
+.env*
 uv.lock

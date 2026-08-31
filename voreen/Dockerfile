@@ -2,6 +2,9 @@ ARG NUMBER_OF_PROCESSES
 
 FROM debian:bullseye-slim
 
+ARG GIT_COMMIT=unknown
+LABEL org.opencontainers.image.revision=$GIT_COMMIT
+
 RUN apt-get update && apt-get install -y --no-install-recommends apt-utils
 
 # Install dependencies

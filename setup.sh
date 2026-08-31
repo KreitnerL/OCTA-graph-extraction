@@ -67,6 +67,67 @@ print_status() {
     fi
 }
 
+current_git_commit() {
+    git rev-parse HEAD 2>/dev/null || echo "unknown"
+}
+
+current_git_commit_display() {
+    local commit
+    commit=$(current_git_commit)
+    if [ "$commit" = "unknown" ]; then
+        echo "unknown"
+    elif ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
+        echo "${commit:0:12} (dirty worktree)"
+    else
+        echo "${commit:0:12}"
+    fi
+}
+
+image_exists() {
+    docker image inspect "$1" &> /dev/null
+}
+
+image_revision() {
+    docker image inspect \
+        --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' \
+        "$1" 2>/dev/null || echo ""
+}
+
+image_revision_display() {
+    local revision
+    revision=$(image_revision "$1")
+    if [ -z "$revision" ] || [ "$revision" = "<no value>" ]; then
+        echo "unknown"
+    else
+        echo "${revision:0:12}"
+    fi
+}
+
+should_build_image() {
+    local image_name=$1
+    local description=$2
+
+    if ! image_exists "$image_name"; then
+        print_status "info" "$description image '$image_name' not found; it will be built."
+        return 0
+    fi
+
+    echo ""
+    echo -e "${CYAN}$description image already exists: $image_name${NC}"
+    echo "  Image build commit: $(image_revision_display "$image_name")"
+    echo "  Current repo commit: $(current_git_commit_display)"
+    read -p "Rebuild $description image? [y/N]: " rebuild_choice
+    case "$rebuild_choice" in
+        y|Y|yes|YES)
+            return 0
+            ;;
+        *)
+            print_status "info" "Keeping existing $description image"
+            return 1
+            ;;
+    esac
+}
+
 # Check prerequisites
 print_section "1. Checking Prerequisites"
 
@@ -87,7 +148,7 @@ print_status "success" "Docker daemon is running"
 # Mode-specific prerequisites
 if [ "$SETUP_MODE" = "full_docker" ]; then
     # Check Docker Compose for full docker setup
-    if ! command -v docker compose &> /dev/null; then
+    if ! docker compose version &> /dev/null; then
         print_status "error" "Docker Compose not found. Please install Docker Compose first."
         exit 1
     fi
@@ -157,17 +218,13 @@ sed -i '/^GID=/d' .env 2>/dev/null || true
 sed -i '/^DOCKER_GID=/d' .env 2>/dev/null || true
 
 # Configure paths
-print_status "info" "Configuring directory paths..."
+print_status "info" "Configuring setup paths..."
 
 # Default directories
 DEFAULT_TMP_DIR="/tmp/voreen"
-DEFAULT_SRC_DIR="$(pwd)/data/src"
-DEFAULT_OUTPUT_DIR="$(pwd)/data/output"
 
 # Get current values from .env if present
 CURRENT_TMP_DIR=$(grep "HOST_TMP_DIR=" .env 2>/dev/null | cut -d'=' -f2 || echo "TODO")
-CURRENT_SRC_DIR=$(grep "HOST_SRC_DIR=" .env 2>/dev/null | cut -d'=' -f2 || echo "TODO")
-CURRENT_OUTPUT_DIR=$(grep "HOST_OUTPUT_DIR=" .env 2>/dev/null | cut -d'=' -f2 || echo "TODO")
 
 # Ask for temporary directory
 if [ "$CURRENT_TMP_DIR" = "TODO" ] || [ -z "$CURRENT_TMP_DIR" ]; then
@@ -191,49 +248,7 @@ else
     print_status "success" "Using existing temporary directory: $HOST_TMP_DIR"
 fi
 
-# Ask for source directory
-if [ "$CURRENT_SRC_DIR" = "TODO" ] || [ -z "$CURRENT_SRC_DIR" ]; then
-    echo ""
-    echo -e "${CYAN}Configure source data directory:${NC}"
-    echo -e "This directory will be used for input/source data."
-    echo -e "Default: ${DEFAULT_SRC_DIR}"
-    echo ""
-    read -p "Enter source directory path (or press Enter for default): " USER_SRC_DIR
-
-    if [ -z "$USER_SRC_DIR" ]; then
-        HOST_SRC_DIR="$DEFAULT_SRC_DIR"
-    else
-        HOST_SRC_DIR="$USER_SRC_DIR"
-    fi
-
-    mkdir -p "$HOST_SRC_DIR"
-    print_status "success" "Source directory set to: $HOST_SRC_DIR"
-else
-    HOST_SRC_DIR="$CURRENT_SRC_DIR"
-    print_status "success" "Using existing source directory: $HOST_SRC_DIR"
-fi
-
-# Ask for output directory
-if [ "$CURRENT_OUTPUT_DIR" = "TODO" ] || [ -z "$CURRENT_OUTPUT_DIR" ]; then
-    echo ""
-    echo -e "${CYAN}Configure output directory:${NC}"
-    echo -e "This directory will be used for analysis results/output files."
-    echo -e "Default: ${DEFAULT_OUTPUT_DIR}"
-    echo ""
-    read -p "Enter output directory path (or press Enter for default): " USER_OUTPUT_DIR
-
-    if [ -z "$USER_OUTPUT_DIR" ]; then
-        HOST_OUTPUT_DIR="$DEFAULT_OUTPUT_DIR"
-    else
-        HOST_OUTPUT_DIR="$USER_OUTPUT_DIR"
-    fi
-
-    mkdir -p "$HOST_OUTPUT_DIR"
-    print_status "success" "Output directory set to: $HOST_OUTPUT_DIR"
-else
-    HOST_OUTPUT_DIR="$CURRENT_OUTPUT_DIR"
-    print_status "success" "Using existing output directory: $HOST_OUTPUT_DIR"
-fi
+print_status "info" "Source and output directories are specified when running analysis commands."
 
 # Update .env file with all configurations
 sed -i '/^HOST_TMP_DIR=/d' .env 2>/dev/null || true
@@ -243,8 +258,6 @@ sed -i '/^HOST_OUTPUT_DIR=/d' .env 2>/dev/null || true
 # Add updated configuration to .env file
 cat >> .env << EOF
 HOST_TMP_DIR=$HOST_TMP_DIR
-HOST_SRC_DIR=$HOST_SRC_DIR
-HOST_OUTPUT_DIR=$HOST_OUTPUT_DIR
 UID=$CURRENT_UID
 GID=$CURRENT_GID
 DOCKER_GID=$DOCKER_GROUP_ID
@@ -253,15 +266,19 @@ EOF
 print_status "success" "Environment configured successfully"
 
 # Build Docker images
-print_section "4. Building Docker Images"
+print_section "4. Docker Images"
+
+GIT_COMMIT=$(current_git_commit)
 
 if [ "$SETUP_MODE" = "host_python" ]; then
-    print_status "info" "Building Voreen container. This can take a while..."
-    if docker build -f voreen/Dockerfile -t voreen . > /tmp/build_voreen.log 2>&1; then
-        print_status "success" "Voreen container built successfully"
-    else
-        print_status "error" "Failed to build Voreen container. Check /tmp/build_voreen.log"
-        exit 1
+    if should_build_image "voreen" "Voreen"; then
+        print_status "info" "Building Voreen container. This can take a while..."
+        if docker build -f voreen/Dockerfile -t voreen --build-arg GIT_COMMIT="$GIT_COMMIT" . > /tmp/build_voreen.log 2>&1; then
+            print_status "success" "Voreen container built successfully"
+        else
+            print_status "error" "Failed to build Voreen container. Check /tmp/build_voreen.log"
+            exit 1
+        fi
     fi
     
     if [ -d ".venv" ]; then
@@ -285,20 +302,24 @@ if [ "$SETUP_MODE" = "host_python" ]; then
     fi
 
 elif [ "$SETUP_MODE" = "full_docker" ]; then
-    print_status "info" "Building Voreen container. This can take a while..."
-    if docker compose build voreen > /tmp/build_voreen.log 2>&1; then
-        print_status "success" "Voreen container built successfully"
-    else
-        print_status "error" "Failed to build Voreen container. Check /tmp/build_voreen.log"
-        exit 1
+    if should_build_image "voreen:latest" "Voreen"; then
+        print_status "info" "Building Voreen container. This can take a while..."
+        if docker compose build --build-arg GIT_COMMIT="$GIT_COMMIT" voreen > /tmp/build_voreen.log 2>&1; then
+            print_status "success" "Voreen container built successfully"
+        else
+            print_status "error" "Failed to build Voreen container. Check /tmp/build_voreen.log"
+            exit 1
+        fi
     fi
 
-    print_status "info" "Building Python container..."
-    if docker compose build octa-graph-extraction > /tmp/build_python.log 2>&1; then
-        print_status "success" "Python container built successfully"
-    else
-        print_status "error" "Failed to build Python container. Check /tmp/build_python.log"
-        exit 1
+    if should_build_image "octa-graph-extraction:latest" "Python"; then
+        print_status "info" "Building Python container..."
+        if docker compose build --build-arg GIT_COMMIT="$GIT_COMMIT" octa-graph-extraction > /tmp/build_python.log 2>&1; then
+            print_status "success" "Python container built successfully"
+        else
+            print_status "error" "Failed to build Python container. Check /tmp/build_python.log"
+            exit 1
+        fi
     fi
 fi
 
@@ -308,10 +329,10 @@ print_section "5. Starting Containers"
 if [ "$SETUP_MODE" = "full_docker" ]; then
     print_status "info" "Starting containers..."
     
-    # Create the directories that will be mounted to avoid permission issues
+    # Create default mount directories for setup smoke tests only.
     TEST_TMP_DIR=$(grep "HOST_TMP_DIR=" .env | cut -d'=' -f2)
-    TEST_SRC_DIR=$(grep "HOST_SRC_DIR=" .env | cut -d'=' -f2)
-    TEST_OUTPUT_DIR=$(grep "HOST_OUTPUT_DIR=" .env | cut -d'=' -f2)
+    TEST_SRC_DIR="$(pwd)/data/src"
+    TEST_OUTPUT_DIR="$(pwd)/data/output"
     
     mkdir -p "$TEST_TMP_DIR" "$TEST_SRC_DIR" "$TEST_OUTPUT_DIR" 2>/dev/null || true
     
@@ -404,8 +425,6 @@ elif [ "$SETUP_MODE" = "full_docker" ]; then
 
     # Test 5: Test volume mounts
     print_status "info" "Testing volume mounts..."
-    TEST_INPUT_DIR=$(grep "HOST_SRC_DIR=" .env | cut -d'=' -f2)
-    TEST_OUTPUT_DIR=$(grep "HOST_OUTPUT_DIR=" .env | cut -d'=' -f2)
     TEST_TMP_DIR=$(grep "HOST_TMP_DIR=" .env | cut -d'=' -f2)
 
     # Create default directories for testing
@@ -435,8 +454,8 @@ if [ "$SETUP_MODE" = "host_python" ]; then
     echo "   source .venv/bin/activate"
     echo ""
     echo -e "${YELLOW}🔧 Run analysis commands:${NC}"
-    echo "   ./run_host.sh faz_seg --src-dir /path/to/data --output-dir /path/to/results"
-    echo "   ./run_host.sh graph_extraction --src-dir /path/to/data --output-dir /path/to/results"
+    echo "   python pipeline.py --source_dir /path/to/segmentations --output_dir /path/to/results --etdrs"
+    echo "   python graph_feature_extractor.py --image_files '/path/to/segmentations/**/*.png' --output_dir /path/to/results/graphs"
     echo ""
     echo -e "${YELLOW}📁 Source and output directories will be specified when running commands${NC}"
     if docker compose down &> /dev/null; then
@@ -459,7 +478,7 @@ elif [ "$SETUP_MODE" = "full_docker" ]; then
     echo "   Source & Output: Configure when running commands"
     echo ""
     echo -e "${YELLOW}🔧 Run analysis with automatic container management:${NC}"
-    echo "   ./run_analysis.sh etdrs_pipeline --src-dir /path/to/data --output-dir /path/to/results"
+    echo "   ./run_analysis.sh pipeline --source_dir /path/to/segmentations --output_dir /path/to/results -- --etdrs"
     echo -e "${BLUE}Stopping containers...${NC}"
     if docker compose down &> /dev/null; then
         print_status "success" "Removed containers successfully"
