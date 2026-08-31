@@ -3,6 +3,7 @@ import concurrent.futures
 import glob
 import os
 import pathlib
+import tempfile
 from functools import partial
 from multiprocessing import cpu_count
 
@@ -25,6 +26,41 @@ project_folder = str(pathlib.Path(__file__).parent.resolve())
 DOCKER_VOREEN_BIN = "/home/software/voreen-voreen-5.3.0/voreen/bin/"
 DOCKER_WORK_DIR = '/var/results'
 
+
+def docker_work_dir_for_output(outdir: str, output_mount_dir: str) -> str:
+    """Return the Voreen-container output path corresponding to a host/container output dir."""
+    rel_outdir = os.path.relpath(os.path.abspath(outdir), os.path.abspath(output_mount_dir))
+    if rel_outdir == ".":
+        return DOCKER_WORK_DIR
+    return os.path.join(DOCKER_WORK_DIR, rel_outdir)
+
+
+def ensure_writable_output_dir(path: str) -> None:
+    """Create an output directory before Docker can create it as root-owned."""
+    os.makedirs(path, exist_ok=True)
+    try:
+        with tempfile.TemporaryFile(dir=path):
+            pass
+    except PermissionError as _:
+        try:
+            os.rmdir(path)
+            os.makedirs(path, exist_ok=True)
+            with tempfile.TemporaryFile(dir=path):
+                pass
+        except OSError as repair_exc:
+            raise PermissionError(
+                f"Output directory is not writable: {path}\n"
+                "If Docker created it as root, fix it with:\n"
+                f"  sudo chown -R $USER:$USER '{path}'\n"
+                "or remove it if it is empty and rerun the pipeline."
+            ) from repair_exc
+        except PermissionError as repair_exc:
+            raise PermissionError(
+                f"Output directory is not writable: {path}\n"
+                "If Docker created it as root, fix it with:\n"
+                f"  sudo chown -R $USER:$USER '{path}'"
+            ) from repair_exc
+
 def get_code_name(path: str) -> str:
     extension = ".nii.gz" if path.endswith(".nii.gz") else "."+path.split(".")[-1]
     return os.path.basename(path).removesuffix(extension).removeprefix("faz_").removeprefix("model_").removeprefix("model_")
@@ -34,6 +70,7 @@ def full_graph(
         source_dir: str,
         tmp_dir: str,
         output_dir: str,
+        output_mount_dir: str,
         container_name: str,
         color_thresholds: list[float] = None,
         z_dim: int = 64,
@@ -51,8 +88,9 @@ def full_graph(
         output_dir = os.path.dirname(ves_seg_path)
     else:
         output_dir = output_dir
-    output_dir = os.path.dirname(ves_seg_path).replace(source_dir, output_dir)
-    os.makedirs(output_dir, exist_ok=True)
+    outdir = os.path.dirname(ves_seg_path).replace(source_dir, output_dir)
+    os.makedirs(outdir, exist_ok=True)
+    docker_work_dir = docker_work_dir_for_output(outdir, output_mount_dir)
     
     if extension == ".nii.gz":
         img_nii = nib.load(ves_seg_path)
@@ -67,8 +105,8 @@ def full_graph(
     extract_vessel_graph(
         img_nii=img_nii,
         image_name=image_name,
-        outdir=output_dir,
-        DOCKER_WORK_DIR=DOCKER_WORK_DIR,
+        outdir=outdir,
+        DOCKER_WORK_DIR=docker_work_dir,
         tmp_dir=tmp_dir,
         bulge_size=bulge_size,
         workspace_file=voreen_workspace,
@@ -86,6 +124,7 @@ def etdrs_graph(
         source_dir: str,
         tmp_dir: str,
         output_dir: str,
+        output_mount_dir: str,
         container_name: str,
         faz_code_name_map: dict[str, str],
         color_thresholds: list[float] = None,
@@ -104,8 +143,9 @@ def etdrs_graph(
         output_dir = os.path.dirname(ves_seg_path)
     else:
         output_dir = output_dir
-    output_dir= os.path.join(os.path.dirname(ves_seg_path).replace(source_dir, output_dir),image_name.removesuffix(extension))
-    os.makedirs(output_dir, exist_ok=True)
+    outdir = os.path.join(os.path.dirname(ves_seg_path).replace(source_dir, output_dir), image_name.removesuffix(extension))
+    os.makedirs(outdir, exist_ok=True)
+    docker_work_dir = docker_work_dir_for_output(outdir, output_mount_dir)
     
     if extension == ".nii.gz":
         img_nii: nib.Nifti1Image = nib.load(ves_seg_path)
@@ -147,8 +187,8 @@ def etdrs_graph(
         extract_vessel_graph(
             img_nii=ves_seg_masked_nii,
             image_name=f"{image_name}_{suffix}",
-            outdir=f"{output_dir}",
-            DOCKER_WORK_DIR=f"{DOCKER_WORK_DIR}/{image_name}",
+            outdir=outdir,
+            DOCKER_WORK_DIR=docker_work_dir,
             tmp_dir=tmp_dir,
             bulge_size=bulge_size,
             workspace_file=voreen_workspace,
@@ -180,15 +220,18 @@ def perform_graph_feature_extraction(
         **kwargs
 ):
     global DOCKER_WORK_DIR, DOCKER_VOREEN_BIN
-    # Clean tmpdir
-    if os.path.exists(tmp_dir):
-        os.system(f"rm -rf '{os.path.join(tmp_dir, "*")}'")
+    output_dir = output_dir or None
 
     ves_seg_files = [p for p in natsorted(glob.glob(image_files, recursive=True))]
     assert len(ves_seg_files)>0, f"Found no matching vessel segmentation files for path {image_files}!"
-    source_dir = os.path.dirname(os.path.commonprefix(ves_seg_files))
+    source_dir = os.path.commonpath(ves_seg_files)
+    if not os.path.isdir(source_dir):
+        source_dir = os.path.dirname(source_dir)
+    output_dir = output_dir or source_dir
+    ensure_writable_output_dir(output_dir)
+    os.makedirs(tmp_dir, exist_ok=True)
 
-    color_thresholds = [float(t) for t in thresholds.split(",")] if thresholds is not None else None
+    color_thresholds = [float(t) for t in thresholds.split(",")] if thresholds else None
 
     container_name = None
     # Check if we're running in Docker (DooD setup)
@@ -276,10 +319,13 @@ def perform_graph_feature_extraction(
         # print(f"Running in Docker container with subfolder {subfolder}.")
         # DOCKER_WORK_DIR = DOCKER_WORK_DIR + subfolder
     
-    subfolder = "/" + str(output_dir).removeprefix(HOST_OUTPUT_DIR).removeprefix("/")
+    output_mount_dir = (
+        os.getenv("CONTAINER_OUTPUT_DIR", "/data/output")
+        if running_in_docker
+        else (HOST_OUTPUT_DIR or output_dir)
+    )
     if verbose:
-        print(f"Running in Docker container with subfolder {subfolder}.")
-    DOCKER_WORK_DIR = DOCKER_WORK_DIR + subfolder
+        print(f"Mapping output paths relative to {output_mount_dir}.")
 
     if etdrs:
         assert bool(faz_dir)
@@ -291,6 +337,7 @@ def perform_graph_feature_extraction(
             source_dir=source_dir,
             tmp_dir=tmp_dir,
             output_dir=output_dir,
+            output_mount_dir=output_mount_dir,
             container_name=container_name,
             faz_code_name_map=faz_code_name_map,
             color_thresholds=color_thresholds,
@@ -309,6 +356,7 @@ def perform_graph_feature_extraction(
             source_dir=source_dir,
             tmp_dir=tmp_dir,
             output_dir=output_dir,
+            output_mount_dir=output_mount_dir,
             container_name=container_name,
             color_thresholds=color_thresholds,
             z_dim=z_dim,
@@ -329,7 +377,8 @@ def perform_graph_feature_extraction(
             with tqdm(total=len(ves_seg_files), desc="Extracting graph features...") as pbar:
                 with concurrent.futures.ProcessPoolExecutor(max_workers=threads) as executor:
                     future_dict = {executor.submit(task, ves_seg_files[i]): i for i in range(len(ves_seg_files))}
-                    for _ in concurrent.futures.as_completed(future_dict):
+                    for future in concurrent.futures.as_completed(future_dict):
+                        future.result()
                         pbar.update(1)
         else:
             # Single processing
@@ -337,6 +386,7 @@ def perform_graph_feature_extraction(
                 task(ves_seg_path)
     except Exception as e:
         print(f"An error occurred during graph feature extraction:\n{e}")
+        raise
     finally:
         if container_name is not None:
             client = docker.from_env()
@@ -344,12 +394,6 @@ def perform_graph_feature_extraction(
             container.stop()
             container.remove()
             print(f"Container '{container_name}' stopped and removed.")
-            if os.path.exists(tmp_dir):
-                result = os.system(f"rm -rf {os.path.join(tmp_dir, '*')}")
-                if result == 0:
-                    print(f"Temporary directory {tmp_dir} cleaned up successfully.")
-                else:
-                    print(f"Failed to clean up temporary directory {tmp_dir}.")
 
 
 if __name__ == "__main__":

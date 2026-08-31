@@ -7,7 +7,7 @@ from multiprocessing import cpu_count
 from dotenv import load_dotenv
 
 from faz_segmentation import perform_faz_segmentation
-from generate_analysis_summary import generate_anylsis_file
+from generate_analysis_summary import ALLOWED_BIOMARKERS, generate_anylsis_file
 from graph_feature_extractor import perform_graph_feature_extraction
 
 load_dotenv()
@@ -31,7 +31,13 @@ parser.add_argument('--no_generate_graph_file', help="Do not generate the graph 
 parser.add_argument('--z_dim', help="Z dimension of the 3D segmentation mask. Only needed for 2D segmentation masks.", type=int, default=64)
 
 parser.add_argument('--radius_correction_factor', help="Additive correction factor for the radius estimation. Default is -1.0 to correct for Voreen's overestimation by 1 pixel measured on synthetic data.", type=float, default=-1.0)
-parser.add_argument('--radius_thresholds', type=str, default="0,inf", help="Comma separated list of thresholds for vessel stratification [um].")
+parser.add_argument('--radius_thresholds', type=str, default="", help="Comma separated list of thresholds for vessel stratification [um]. Empty = single density column.")
+parser.add_argument(
+    '--biomarkers',
+    type=str,
+    default="density",
+    help=f"Comma-separated biomarkers to summarize. Allowed: {', '.join(ALLOWED_BIOMARKERS)}. Default: density.",
+)
 parser.add_argument('--mm', type=float, default=3.0, help="Height of the segmentation volume in mm. Default is 3 mm")
 parser.add_argument('--etdrs', action="store_true", help="If set, use ETDRS grid stratification")
 parser.add_argument('--center_radius', type=float, default=3/6, help="Radius of ETDRS center radius in mm")
@@ -41,21 +47,22 @@ parser.add_argument('--verbose', action="store_true", help="Print log informatio
 parser.add_argument('--threads', help="Number of parallel threads. By default all available threads but one are used.", type=int, default=cpu_count()-1)
 args = parser.parse_args()
 
-source_files = args.source_dir + "/*.png"
-output_dir = args.output_dir.removesuffix("/") if args.output_dir is not None else args.source_dir.removesuffix("/")
+source_dir = args.source_dir.removesuffix("/")
+source_files = os.path.join(source_dir, "**", "*.png")
+output_dir = args.output_dir.removesuffix("/") if args.output_dir is not None else source_dir
 
 if args.etdrs:
     perform_faz_segmentation(
         source_files=source_files,
-        output_dir=args.output_dir + "/faz",
+        output_dir=output_dir + "/faz",
         threads=args.threads
     )
 
 perform_graph_feature_extraction(
     tmp_dir=args.tmp_dir,
-    output_dir=args.output_dir+"/graphs",
+    output_dir=output_dir+"/graphs",
     image_files=source_files,
-    faz_dir=args.output_dir+"/faz",
+    faz_dir=output_dir+"/faz",
     thresholds=args.radius_thresholds,
     voreen_image_name=args.voreen_image_name,
     voreen_workspace=args.voreen_workspace,
@@ -75,11 +82,12 @@ perform_graph_feature_extraction(
 )
 
 generate_anylsis_file(
-    source_dir=args.output_dir+"/graphs",
-    segmentation_dir=args.source_dir,
-    output_dir=args.output_dir,
-    faz_files= args.output_dir+"/faz/*.png",
+    source_dir=output_dir+"/graphs",
+    segmentation_dir=source_dir,
+    output_dir=output_dir,
+    faz_files=output_dir+"/faz/**/*.png",
     radius_thresholds=args.radius_thresholds,
+    biomarkers=args.biomarkers,
     mm=args.mm,
     etdrs=args.etdrs,
     radius_correction_factor=args.radius_correction_factor,

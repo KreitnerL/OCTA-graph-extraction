@@ -36,9 +36,16 @@ def keep_largest_connected_component(image: np.ndarray) -> np.ndarray:
     return output
 
 def get_faz_mask_robust(img_orig: np.ndarray) -> np.ndarray:
-    for border in [600,500,400,300,200, 100]:
+    h, w = img_orig.shape[:2]
+    # border+1 must be a valid index; BORDER must be smaller than image size
+    max_border = min(h, w) // 2 - 2
+    borders = [b for b in [600, 500, 400, 300, 200, 100] if b <= max_border]
+    if not borders:
+        borders = [max(1, max_border)]
+    faz = get_faz_mask(img_orig, borders[0])
+    for border in borders:
         faz = get_faz_mask(img_orig, border)
-        if (faz[border+1,:]).any() or (faz[-border-1,:]).any() or (faz[:,border+1]).any() or (faz[:, -border-1]).any():
+        if (faz[border + 1, :]).any() or (faz[-border - 1, :]).any() or (faz[:, border + 1]).any() or (faz[:, -border - 1]).any():
             continue
         return faz
     return faz
@@ -100,7 +107,8 @@ def perform_faz_segmentation(source_files: str, output_dir: str, threads: int = 
         with tqdm(total=min(num_samples, len(data_files)), desc="Segmenting FAZ...") as pbar:
             with concurrent.futures.ProcessPoolExecutor(max_workers=threads) as executor:
                 future_dict = {executor.submit(partial(task, source_folder=source_folder, output_dir=output_dir), data_files[i]): i for i in range(len(data_files))}
-                for _ in concurrent.futures.as_completed(future_dict):
+                for future in concurrent.futures.as_completed(future_dict):
+                    future.result()
                     pbar.update(1)
     else:
         if data_files[0].endswith(".nii.gz"):
