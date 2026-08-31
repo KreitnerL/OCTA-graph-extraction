@@ -6,7 +6,7 @@ This repository enables the quantitative analysis of OCTA images. Given a vessel
     <img src="images/graph_extraction_pipeline.png" style="max-width:1000px">
 </div>
 
-# 📄 How to Cite
+# How to Cite
 
 If you use this software in your research, please cite:
 
@@ -22,22 +22,23 @@ If you use this software in your research, please cite:
 
 # Table of Contents
 - [OCTA GRAPH FEATURE ANALYSIS](#octa-graph-feature-analysis)
-- [📄 How to Cite](#-how-to-cite)
+- [How to Cite](#how-to-cite)
 - [Table of Contents](#table-of-contents)
-- [🛠️ Installation \& Setup](#️-installation--setup)
-    - [📦 Prerequisites](#-prerequisites)
-- [🚀 Usage Examples](#-usage-examples)
-  - [🐍+🐋 Host Python Setup Usage](#-host-python-setup-usage)
-  - [🐋+🐋 Full Docker Setup Usage](#-full-docker-setup-usage)
-  - [ETDRS Grid Analysis](#etdrs-grid-analysis)
-- [🔎 Implementation details](#-implementation-details)
-    - [Density estimation](#density-estimation)
-    - [Graph extraction](#graph-extraction)
-- [Customizations (optional)](#customizations-optional)
+- [1. Installation \& Setup](#1-installation--setup)
+    - [Prerequisites](#prerequisites)
+- [2. Usage Examples](#2-usage-examples)
+  - [2.1 🐍+🐋 Host Python Setup Usage](#21--host-python-setup-usage)
+  - [2.2 🐋+🐋 Full Docker Setup Usage](#22--full-docker-setup-usage)
+  - [2.3 ETDRS Grid Analysis](#23-etdrs-grid-analysis)
+- [3. Implementation details](#3-implementation-details)
+    - [3.1 Density estimation](#31-density-estimation)
+    - [3.2 Biomarker summaries](#32-biomarker-summaries)
+    - [3.3 Graph extraction](#33-graph-extraction)
+- [4. Customizations (optional)](#4-customizations-optional)
   - [🐋 Manual Container Management](#-manual-container-management)
-  - [📁 Path Configuration](#-path-configuration)
+  - [5. Path Configuration](#5-path-configuration)
   - [⚡Multi-threading](#multi-threading)
-- [🔍 Troubleshooting](#-troubleshooting)
+- [6. Troubleshooting](#6-troubleshooting)
   - [Setup Issues](#setup-issues)
     - [UV Installation (Host Python setup)](#uv-installation-host-python-setup)
     - [Build Issues](#build-issues)
@@ -50,11 +51,11 @@ If you use this software in your research, please cite:
   - [Debug Mode](#debug-mode)
     - [Verbose Output](#verbose-output)
     - [Manual Container Debugging (Full Docker)](#manual-container-debugging-full-docker)
-- [📖 Additional Resources](#-additional-resources)
+- [7. Additional Resources](#7-additional-resources)
 
-# 🛠️ Installation & Setup
+# 1. Installation & Setup
 
-### 📦 Prerequisites
+### Prerequisites
 - Docker installed on your host system
 - Access to the Docker daemon (user should be in the `docker` group)
 
@@ -66,21 +67,21 @@ This project supports two workflows you can choose between:
 ./setup.sh  # Interactive setup (one-time) - choose your workflow
 ```
 
-# 🚀 Usage Examples
+# 2. Usage Examples
 
 After running `./setup.sh`, you can use the automated command runners that handle container lifecycle and path configuration automatically.
 
-## 🐍+🐋 Host Python Setup Usage
+## 2.1 🐍+🐋 Host Python Setup Usage
 
 Make sure that you environment is activated: 
 ```sh
 source .venv/bin/activate
 ```
 
-**📋 Basic Commands:**
+**Basic Commands:**
 ```bash
 # Complete pipeline (faz segmentation + graph extraction + summary)
-python pipeline.py --source_dir /path/to/segmentations --output_dir /path/to/output  [--radius_thresholds r1,...,rn]
+python pipeline.py --source_dir /path/to/segmentations --output_dir /path/to/output [--radius_thresholds r1,...,rn] [--biomarkers density,curveness]
 
 # --- Perform steps separately: ---
 # FAZ segmentation
@@ -90,17 +91,17 @@ python faz_segmentation.py --source_files /path/to/images --output_dir /path/to/
 python graph_feature_extractor.py --image_files /path/to/segmentations --output_dir /path/to/results
 
 # Analysis summary
-python generate_analysis_summary.py --source_dir /path/to/graph_files --segmentation_dir /path/to/segmentations --output_dir /path/to/results [--radius_thresholds r1,...,rn]
+python generate_analysis_summary.py --source_dir /path/to/graph_files --segmentation_dir /path/to/segmentations --output_dir /path/to/results [--radius_thresholds r1,...,rn] [--biomarkers density,curveness]
 ```
 
-## 🐋+🐋 Full Docker Setup Usage
+## 2.2 🐋+🐋 Full Docker Setup Usage
 
 Use the `run_analysis.sh` script for automated container management:
 
 **📋 Basic Commands:**
 ```bash
 # Complete pipeline (faz segmentation + graph extraction + summary)
-./run_analysis.sh pipeline --source_dir /path/to/data --output_dir /path/to/results [-- --radius_thresholds r1,...,rn]
+./run_analysis.sh pipeline --source_dir /path/to/data --output_dir /path/to/results [-- --radius_thresholds r1,...,rn --biomarkers density,curveness]
 
 # --- Perform steps separately: ---
 # FAZ segmentation (auto-starts containers, runs command, cleans up)
@@ -109,14 +110,14 @@ Use the `run_analysis.sh` script for automated container management:
 # Graph extraction with automatic container management
 ./run_analysis.sh graph --source_dir /path/to/segmentations --output_dir /path/to/results
 
-# Generate analysis summary
-./run_analysis.sh summary --source_dir /path/to/segmentations --output_dir /path/to/results [-- --radius_thresholds r1,...,rn]
+# Generate analysis summary (--source_dir = segmentations, --output_dir = pipeline output root)
+./run_analysis.sh summary --source_dir /path/to/segmentations --output_dir /path/to/results [-- --etdrs --radius_thresholds 5,10 --biomarkers density,curveness]
 ```
 
 > [!IMPORTANT]
 > Please note that the predicted radii by Voreen might be subject to small additive error factor. You can manually configure the necessary correction factor for image plotting with the `--radius_correction_factor` argument. On synthetic data, we measured 1 pixel overestimation, hence this is the default. The `_edges.csv` and `_graph.json` files always show the 'raw' output without any corrections.
 
-## ETDRS Grid Analysis
+## 2.3 ETDRS Grid Analysis
 The ETDRS (Early Treatment Diabetic Retinopathy Study) grid analysis divides the retinal image into standardized regions for quantitative analysis. The center of the grid is automatically set to the center of mass of the FAZ (Foveal Avascular Zone).
 
 <div style="text-align:center">
@@ -132,15 +133,20 @@ You can use ETDRS analysis by adding the `--etdrs` flag for graph extraction and
 > - Vessel and FAZ segmentation files should be in separate folders with matching names
 
 
-# 🔎 Implementation details
-### Density estimation
+# 3. Implementation details
+### 3.1 Density estimation
 A core part of the generated summary is the density estimation stratified by radius. In our work, density is defined as the **number of non-zero pixels in the 2D image divided by the total number of pixels**. We assign pixels to a given radius interval by regenerating the segmentation map from the extracted graph file. While this is only an estimation of the true image, it yields good results in praxis (see generated images).
 For pixels that belong to multiple intervals (e.g. at bifurcations) we divide a pixels contribution to the number of intervals it is contained in.
 
-### Graph extraction
+### 3.2 Biomarker summaries
+By default, `generate_analysis_summary.py` writes the existing density summary. Use `--biomarkers` with a comma-separated list to add or replace summary biomarkers, for example `--biomarkers density,curveness` or `--biomarkers curveness,volume`.
+
+Allowed biomarkers are `density`, `length`, `distance`, `curveness`, `volume`, `avgCrossSection`, `minRadiusAvg`, `minRadiusStd`, `avgRadiusAvg`, `avgRadiusStd`, `maxRadiusAvg`, `maxRadiusStd`, `roundnessAvg`, and `roundnessStd`. Voreen biomarkers are aggregated as the mean edge value within each ETDRS/radius stratum.
+
+### 3.3 Graph extraction
 To extract a graph from the segmentation mask we use the open-source program Voreen. Its graph extraction module operates on 3D data, requiring a transformation from the 2D masks. We use a simple but effective [2D to 3D algorithm](./utils/convert_2d_to_3d.py) based on [`skimage.morphology.skeletonize`](https://scikit-image.org/docs/0.25.x/api/skimage.morphology.html#skimage.morphology.skeletonize) and [`scipy.ndimage.distance_transform_edt`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.distance_transform_edt.html).
 
-# Customizations (optional)
+# 4. Customizations (optional)
 ## 🐋 Manual Container Management
 ```bash
 # Start containers manually (if needed)
@@ -152,7 +158,7 @@ docker compose exec octa-graph-extraction /home/OCTA-graph-extraction/docker/doc
 # Stop containers
 docker compose down
 ```
-## 📁 Path Configuration
+## 5. Path Configuration
 
 **Option 1: Command-line (recommended)**
 ```bash
@@ -185,7 +191,7 @@ Increase the number of concurrent threads for faster dataset processing or decre
 python graph_feature_extractor.py --image_files /path/to/segmentations --output_dir /path/to/results --threads 8
 ```
 
-# 🔍 Troubleshooting
+# 6. Troubleshooting
 
 ## Setup Issues
 
@@ -284,6 +290,6 @@ docker compose down
 ```
 
 
-# 📖 Additional Resources
+# 7. Additional Resources
 - **OCTA vessel segmentation tool** [https://github.com/aiforvision/OCTA-autosegmentation](https://github.com/aiforvision/OCTA-autosegmentation) - Code + pretrained models for automated OCTA segmentation
 - **Notebook Example** [manual_example_ETDRS_analysis.ipynb](./manual_example_ETDRS_analysis.ipynb) - Uses the python + docker setup for a detailed ETDRS analysis of sample data
